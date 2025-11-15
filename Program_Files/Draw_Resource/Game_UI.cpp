@@ -48,6 +48,6 @@ void Game_UI_Finalize()
 
 void Game_UI_Draw()
 {
-	Sprite_Draw(UI_Aim, centerX, centerY, Size, Size, 1.0f, {}, { 1.0f, 1.0f, 1.0f, 1.0f });
-	Sprite_Draw(UI_HP, HPX, HPY, Size * 10.0f, Size * 1.5f, 1.0f, {}, { 1.0f, 1.0f, 1.0f, 1.0f });
+	Sprite_Draw(UI_Aim, centerX, centerY, Size, Size, {}, { 1.0f, 1.0f, 1.0f, 1.0f });
+	Sprite_Draw(UI_HP, HPX, HPY, Size * 10.0f, Size * 1.5f, {}, { 1.0f, 1.0f, 1.0f, 1.0f });
 }

@@ -21,6 +21,12 @@ cbuffer VS_CONSTANT_BUFFER : register(b2)
     float4x4 proj;
 };
 
+cbuffer VS_CONSTANT_BUFFER : register(b3)
+{
+    float2 scale;
+    float2 translation;
+};
+
 struct VS_IN
 {
     float4 posL : POSITION0;
@@ -51,7 +57,7 @@ VS_OUT main(VS_IN vi)
     
     // (Color and UV is same)
     vo.color = vi.color;
-    vo.texcoord = vi.texcoord;
+    vo.texcoord = vi.texcoord * scale * translation;
     
     return vo;
 }

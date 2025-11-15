@@ -32,6 +32,7 @@ static MODEL* CarModel = nullptr;
 static MODEL* BallModel = nullptr;
 
 static bool Is_Debug_Camera = false;
+static bool Is_Sights_Change = false;
 
 void Game_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 {
@@ -68,8 +69,12 @@ void Game_Finalize()
 
 void Game_Update(double elapsed_time)
 {
-	if (KeyLogger_IsTrigger(KK_V))
+	if (KeyLogger_IsTrigger(KK_V) && !Is_Sights_Change)
+	{
+		Is_Sights_Change = true;
 		Player_Camera_Set_Now_Sights();
+		Is_Sights_Change = false;
+	}
 
 	if (KeyLogger_IsTrigger(KK_F1))
 	{

@@ -215,11 +215,11 @@ void Shader_Manager::Begin3D_For_Field(Shader_Filter Filter)
     ID3D11Buffer* vsCbs[] = { m_cbWorld3D.Get(), m_cbView3D.Get(), m_cbProjection3D.Get() };
     m_context->VSSetConstantBuffers(0, 3, vsCbs); // b0, b1, b2
 
-    // --- PS Buffers (b3, b4, b5) ---
+    // --- PS Buffers (b1, b2, b3) ---
     ID3D11Buffer* psCbs[] = {
-        m_cbAmbient3D.Get(),     // b3
-        m_cbDirectional3D.Get(), // b4
-        m_cbSpecular3D.Get()     // b5
+        m_cbAmbient3D.Get(),     // b1
+        m_cbDirectional3D.Get(), // b2
+        m_cbSpecular3D.Get()     // b3
     };
     m_context->PSSetConstantBuffers(3, 3, psCbs); // b3, b4, b5
 
