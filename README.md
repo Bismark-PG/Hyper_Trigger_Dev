@@ -38,8 +38,9 @@ Feedback is always welcome!
    + Implemented core loop : Battle -> Upgrade -> Loop -> TimeOut.
  
 ### v1.0 (2026.02.13)
-- Initial Release!
-   + Fixing bugs in stage 5 and improving the ending sequence.
+- **Initial Release!**
+   + Implemented core Roguelike gameplay mechanics.
+   + Enhanced Real-time Animation Tools for better bone control and debugging.
 
 ## 📝 Roadmap & Dev Notes
 - **This section outlines known issues and future plans for the project.**
@@ -47,7 +48,7 @@ Feedback is always welcome!
 ---
 
 > ### ⁉️ Known Issues
->   + **Not Found** : Mayde..?
+>   + **Non-implementation of grenade physical logic** : Need More Time..!
 >
 > ### 🗃️ Planned Improvements
 >   + **Level Design & AI Pathfinding** : Designing complex map layouts with strategic cover and implementing the **A* (A-Star) algorithm** for enemies to intelligently navigate obstacles and pursue the player.
