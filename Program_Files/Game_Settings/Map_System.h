@@ -15,7 +15,9 @@ void Map_System_Initialize();
 void Map_System_Finalize();
 
 void Map_System_Update(double elapsed_time);
+
 void Map_System_Draw();
+void Map_System_Draw_Shadow(const DirectX::XMMATRIX& LightViewProj);
 
 int Map_System_Get_Object_Count();
 

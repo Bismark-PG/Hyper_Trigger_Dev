@@ -22,7 +22,9 @@ void Player_Finalize();
 
 void Player_Update(double elapsed_time);
 void Player_Model_Animation_Update(float Time);
+
 void Player_Draw();
+void Player_Draw_Shadow(const DirectX::XMMATRIX& LightViewProj);
 
 void Player_Reset();
 void Player_Set_Sprint_Toggle_Mode(bool isToggle);

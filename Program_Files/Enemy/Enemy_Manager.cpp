@@ -71,6 +71,14 @@ void Enemy_Manager::Draw()
     }
 }
 
+void Enemy_Manager::Draw_Shadow(const DirectX::XMMATRIX& LightViewProj)
+{
+    for (Enemy* e : m_ActiveList)
+    {
+        e->Draw_Shadow(LightViewProj);
+    }
+}
+
 void Enemy_Manager::Reset()
 {
     m_ActiveList.clear();

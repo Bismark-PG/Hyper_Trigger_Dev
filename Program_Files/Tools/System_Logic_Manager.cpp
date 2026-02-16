@@ -20,6 +20,7 @@ void System_Manager::Initialize(HWND hWnd, ID3D11Device* Device, ID3D11DeviceCon
 
 	// Initialize Shader Tools
 	Shader_Manager::GetInstance()->Init(Device, Context);
+	Shader_Manager::GetInstance()->InitShadow();
 	Light_Manager::GetInstance().Init();
 
 	// Initialize Texture Tools
@@ -65,6 +66,7 @@ void System_Manager::Finalize()
 	Texture_Manager::GetInstance()->Final();
 
 	// Finalize Shader Tools
+	Shader_Manager::GetInstance()->FinalShadow();
 	Shader_Manager::GetInstance()->Final();
 
 	// Finalize Audio Tools

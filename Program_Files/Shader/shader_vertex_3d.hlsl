@@ -25,6 +25,13 @@ cbuffer VS_CONSTANT_BUFFER : register(b2)
     float4x4 proj;
 };
 
+// b3 : Shadow Map
+cbuffer VS_CONSTANT_SHADOW : register(b3)
+{
+    float4x4 dummy_world;
+    float4x4 LightViewProjection;
+};
+
 // Struct for VS shader
 struct VS_IN
 {
@@ -41,6 +48,7 @@ struct VS_OUT
     float4 normalW : NORMAL0;    // World Normal (For PS)
     float4 color : COLOR0;       // Vertex Color
     float2 texcoord : TEXCOORD0; // texcoord POS
+    float4 posLight : POSITION1; // Light POS
 };
 
 //=============================================================================
@@ -54,8 +62,15 @@ VS_OUT main(VS_IN vi)
     //座標変換 (WVP)
     float4x4 mtxWV = mul(world, view); //ビュー変換
     float4x4 mtxWVP = mul(mtxWV, proj);
+    float4 posW = mul(vi.posL, world);
+    
+    vo.posW = posW;
+    
     // プロジェクション変換
     vo.posH = mul(vi.posL, mtxWVP);
+   
+    // Light View-Proj Conversion For Shadow POS
+    vo.posLight = mul(posW, LightViewProjection);
     
     //--- 2.  Input Data For PS ---
     // Input World POS and Normal for Light Calculation 

@@ -140,6 +140,24 @@ void Enemy::Draw()
 	}
 }
 
+void Enemy::Draw_Shadow(const DirectX::XMMATRIX& LightViewProj)
+{
+	if (!m_IsActive || !m_pModel) return;
+
+	// Set World Matrix (S > R > T)
+	XMMATRIX mtxScale = XMMatrixScaling(m_Info.Scale, m_Info.Scale, m_Info.Scale);
+	XMMATRIX mtxRot = XMMatrixRotationY(Rotation.y);
+	XMMATRIX mtxTrans = XMMatrixTranslation(Position.x, Position.y, Position.z);
+
+	XMMATRIX mtxWorld = mtxScale * mtxRot * mtxTrans;
+
+	// Send Matrix To Shader Manager
+	Shader_Manager::GetInstance()->SetShadowWorldMatrix(mtxWorld, LightViewProj);
+
+	// Drow Model Without Texture (Just Draw Shape)
+	Shader_Manager::GetInstance()->DrawModelShadow(m_pModel, mtxWorld, LightViewProj);
+}
+
 void Enemy::OnDamage(int damage)
 {
 	if (!m_IsActive)

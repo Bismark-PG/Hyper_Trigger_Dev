@@ -38,8 +38,8 @@ void Sky_Draw()
     if (!g_pModelSky) return;
 
 	// Unlighting for Skybox
-    Shader_Manager::GetInstance()->SetLightAmbient({ 1.0f, 1.0f, 1.0f, 1.0f });
-    Shader_Manager::GetInstance()->SetLightDirectional({ 0, -1, 0, 0 }, { 0, 0, 0, 0 });
+    // Shader_Manager::GetInstance()->SetLightAmbient({ 1.0f, 1.0f, 1.0f, 1.0f });
+    // Shader_Manager::GetInstance()->SetLightDirectional({ 0, -1, 0, 0 }, { 0, 0, 0, 0 });
 
 	// World Matrix
     XMMATRIX mtxScale = XMMatrixScaling(50.0f, 50.0f, 50.0f);

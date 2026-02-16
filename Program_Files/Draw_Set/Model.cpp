@@ -67,6 +67,7 @@ float g_R_Toe_X = FOOT_X_DEF, g_R_Toe_Y = 0.0f, g_R_Toe_Z = FOOT_Z_DEF;
 
 // Debug Bone Draw
 bool Is_Bone_AABB_Draw = true;;
+float Bone_AABB = Bone_AABB_Defalut;
 
 //3Dí∏ì_ç\ë¢ëÃ
 struct Vertex3D
@@ -566,7 +567,7 @@ void ModelDraw_Bone(MODEL* model, const DirectX::XMMATRIX& worldMtx)
 		XMStoreFloat3(&bonePos, finalMtx.r[3]);
 
 		// 4. Set Box Scale
-		float boxSize = 0.05f;
+		float boxSize = Bone_AABB;
 		AABB boneBox = {};
 		boneBox.Min = { bonePos.x - boxSize, bonePos.y - boxSize, bonePos.z - boxSize };
 		boneBox.Max = { bonePos.x + boxSize, bonePos.y + boxSize, bonePos.z + boxSize };
@@ -1001,4 +1002,7 @@ void Model_Node_Reset()
 	g_R_Leg_Lower_X = 0.0f; g_R_Leg_Lower_Y = 0.0f; g_R_Leg_Lower_Z = LEG_LOWER_Z_DEF; // 0
 	g_R_Foot_X = FOOT_X_DEF; g_R_Foot_Y = 0.0f; g_R_Foot_Z = FOOT_Z_DEF; // X 45, Z 0
 	g_R_Toe_X = FOOT_X_DEF; g_R_Toe_Y = 0.0f; g_R_Toe_Z = FOOT_Z_DEF;
+
+	// AABB
+	Bone_AABB = Bone_AABB_Defalut;
 }

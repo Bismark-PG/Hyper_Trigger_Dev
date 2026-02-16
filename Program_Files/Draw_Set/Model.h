@@ -114,6 +114,8 @@ extern float g_R_Toe_X, g_R_Toe_Y, g_R_Toe_Z;
 // ---------------------//
 constexpr int MAX_BONES = 100;
 extern bool Is_Bone_AABB_Draw;
+constexpr float Bone_AABB_Defalut = 0.05f;
+extern float Bone_AABB;
 
 struct BoneInfo
 {

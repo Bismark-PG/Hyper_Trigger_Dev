@@ -289,6 +289,31 @@ void Player_Draw()
 	}
 }
 
+void Player_Draw_Shadow(const DirectX::XMMATRIX& LightViewProj)
+{
+	if (!Player_Model) return;
+
+	// Set World Matrix (Must Be Same To Player_Draw POS)
+	XMMATRIX S = XMMatrixScaling(PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE);
+	XMMATRIX T = XMMatrixTranslation(Player_Pos.x, Player_Pos.y, Player_Pos.z);
+
+	// Set Rotation
+	float Yaw = atan2f(Player_Front.x, Player_Front.z);
+	float Model_Yaw = Yaw + XM_PI;
+	XMMATRIX R = XMMatrixRotationY(Model_Yaw);
+
+	// Set Final World Matrix
+	// Matrix = Scale 8 Rotation * Translation
+	XMMATRIX World = S * R * T;
+
+	// Send Matrix To Shader Manager
+	// World + LightViewProjection Matrix
+	Shader_Manager::GetInstance()->SetShadowWorldMatrix(World, LightViewProj);
+
+	// Drow Model Without Texture (Just Draw Shape)
+	Shader_Manager::GetInstance()->DrawModelShadow(Player_Model, World, LightViewProj);
+}
+
 void Player_Reset()
 {
 	// 1. Movement Reset

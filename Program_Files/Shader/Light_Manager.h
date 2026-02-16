@@ -11,6 +11,13 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 
+extern bool g_IsSunRotation;
+extern float g_Sun_Angle, g_Sun_Tilt, g_Sun_Speed;
+extern DirectX::XMFLOAT4 g_Sun_Color, g_Ambient_Color;
+
+constexpr float S_Angle = 0.0f, S_Tlit = 0.05f, S_Speed = 0.1f;
+constexpr DirectX::XMFLOAT4 C_Son = { 0.8f, 0.8f, 0.8f, 1.0f }, C_Ambient = { 0.1f, 0.1f, 0.1f, 1.0f };
+
 class Light_Manager
 {
 public:
@@ -22,7 +29,6 @@ public:
     void Init();
 
     void Global_Light_Set_Up() const;
-
     void Global_Light_Update(double elapsed_time);
 
     // --- Setters ---
@@ -32,6 +38,12 @@ public:
 	// --- Point Light Management ---
     void Set_Point_Light(int index, const DirectX::XMFLOAT3& pos, float range, const DirectX::XMFLOAT4& color);
     void Set_Point_Light_Active_Count(int count);
+
+    // --- Getters ---
+    DirectX::XMFLOAT4 Get_Directional_Vector() const { return m_Directional.Vector; }
+    DirectX::XMFLOAT4 Get_Directional_Color() const { return m_Directional.Color; }
+
+    void Global_Light_Reset();
 
 private:
     Light_Manager()

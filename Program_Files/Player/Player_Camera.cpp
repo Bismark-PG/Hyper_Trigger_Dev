@@ -27,7 +27,7 @@ constexpr float CAMERA_ROTATION_SCALE = 0.005f;
 
 // Player Camera Parameter
 static float Camera_Yaw = 0.0f, Camera_Pitch = 0.0f;
-static float Camera_Near_Z = 0.1f,  Camera_Far_z = 100.0f;
+static float Camera_Near_Z = 0.1f, Camera_Far_z = 1000.0f;
 constexpr float Change_Lerp_Speed = 15.0f;
 
 // Normal State (Base)
@@ -138,7 +138,8 @@ void Player_Camera_Update(double elapsed_time)
         XMStoreFloat3(&Camera_Front, XMVector3Normalize(T - P));
 
         // Set Shader Projection
-        float Aspect = (float)Direct3D_GetBackBufferWidth() / (float)Direct3D_GetBackBufferHeight();
+        float Aspect = static_cast<float>(Direct3D_GetBackBufferWidth()) 
+                      / static_cast<float>(Direct3D_GetBackBufferHeight());
         XMMATRIX Proj = XMMatrixPerspectiveFovLH(Camera_FOV, Aspect, Camera_Near_Z, Camera_Far_z);
         Shader_Manager::GetInstance()->SetProjectionMatrix3D(Proj);
 

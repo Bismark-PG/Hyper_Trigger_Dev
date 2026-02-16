@@ -162,6 +162,22 @@ void Cube_Draw(XMMATRIX W_Matrix, Shader_Filter Filter, Cube_Type Type)
 	g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
 }
 
+void Cube_Draw_Shadow(DirectX::XMMATRIX W_Matrix, DirectX::XMMATRIX LightViewProj)
+{
+	// Send Matrix To Shader
+	Shader_Manager::GetInstance()->SetShadowWorldMatrix(W_Matrix, LightViewProj);
+
+	// Set Vertex, Index Buffer
+	UINT stride = sizeof(Vertex3D);
+	UINT offset = 0;
+	g_pContext->IASetVertexBuffers(0, 1, &Vertex_Buffer, &stride, &offset);
+	g_pContext->IASetIndexBuffer(Index_Buffer, DXGI_FORMAT_R16_UINT, 0);
+	g_pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	// Draw
+	g_pContext->DrawIndexed(NUM_INDEX, 0, 0);
+}
+
 void Debug_Cube_Draw(DirectX::XMMATRIX W_Matrix)
 {
 	// 頂点バッファを描画パイプラインに設定

@@ -11,6 +11,8 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include <wrl/client.h> // ComPtr
+#include "Shadow_Manager.h"
+#include <memory>
 
 enum class Shader_Filter
 {
@@ -57,6 +59,8 @@ struct Bone_Buffer
     DirectX::XMFLOAT4X4 boneTransforms[256]; // Warning : Must Be Same To Skinning V.S Scale
 };
 
+struct MODEL;
+
 class Shader_Manager
 {
 public:
@@ -82,9 +86,11 @@ public:
     // --- Methods for 3D Shader ---
     void Begin3D(Shader_Filter Filter = Shader_Filter::ANISOTROPIC);
     void Begin3D_For_Field(Shader_Filter Filter = Shader_Filter::ANISOTROPIC);
+
     void SetWorldMatrix3D(const DirectX::XMMATRIX& matrix);
     void SetViewMatrix3D(const DirectX::XMMATRIX& matrix);
     void SetProjectionMatrix3D(const DirectX::XMMATRIX& matrix);
+
     void SetTexture3D(ID3D11ShaderResourceView* textureView);
     void SetFieldTextures(ID3D11ShaderResourceView* texture0, ID3D11ShaderResourceView* texture1); // For Multy Texture
 
@@ -92,21 +98,37 @@ public:
     void Begin_Billboard();
     void SetUVParameter(const UV_Parameter& parameter);
 
-    // Shader b0
-    void SetDiffuseColor(const DirectX::XMFLOAT4& color);
-    // Shader b1
-    void SetLightAmbient(const DirectX::XMFLOAT4& color);
-    // Shader b2
-    void SetLightDirectional(const DirectX::XMFLOAT4& worldDirection, const DirectX::XMFLOAT4& color);
-    // Shader b3
-    void SetLightSpecular(const DirectX::XMFLOAT3& cameraPosition, float power, const DirectX::XMFLOAT4& color);
-    // Shader b4
-    void SetPointLight(int index, const DirectX::XMFLOAT3& worldPosition, float range, const DirectX::XMFLOAT4& color);
+    void SetDiffuseColor(const DirectX::XMFLOAT4& color);                                                               // Shader b0
+    void SetLightAmbient(const DirectX::XMFLOAT4& color);                                                               // Shader b1
+    void SetLightDirectional(const DirectX::XMFLOAT4& worldDirection, const DirectX::XMFLOAT4& color);                  // Shader b2
+    void SetLightSpecular(const DirectX::XMFLOAT3& cameraPosition, float power, const DirectX::XMFLOAT4& color);        // Shader b3
+    void SetPointLight(int index, const DirectX::XMFLOAT3& worldPosition, float range, const DirectX::XMFLOAT4& color); // Shader b4
     void SetPointLightCount(int count);
 
     // --- Methods for 3D Model Animation ---
     void Begin3D_Skinning(Shader_Filter Filter = Shader_Filter::ANISOTROPIC);
     void SetBones(const DirectX::XMFLOAT4X4* bones, int count); // Send Bone Data
+
+    // --- Methods For Shadow Mapping ---
+    bool InitShadow(int width = Shadow_Map_W, int height = Shadow_Map_H);
+    void FinalShadow();
+
+    // Manage Shadow Init / Final
+    void BeginShadow_Skinning();    // Shadow For Animation
+    void BeginShadow_Static();      // Shadow For Static Object
+    void EndShadow();               // Return To Draw Pass
+
+    // Helper Logic For Model Shadow Draw
+    void DrawModelShadow(MODEL* model, const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightVP);
+    
+    // Send World, Lighting Matrix To Shader
+    void SetShadowWorldMatrix(const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightViewProj);
+
+    // Send Shadow Map Texture To Pixel Shader
+    void SetShadowMapTexture(ID3D11ShaderResourceView* shadowMapSRV);
+
+    // Getter
+    Shadow_Manager* GetShadowManager() { return m_ShadowManager.get(); }
 
 private:
     Shader_Manager() = default;
@@ -169,6 +191,24 @@ private:
     Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vsSkinning;
     Microsoft::WRL::ComPtr<ID3D11InputLayout>  m_ilSkinning;
     Microsoft::WRL::ComPtr<ID3D11Buffer>       m_cbBones;       // VS b3
+
+    // --- Shadow Resources ---
+    std::unique_ptr<Shadow_Manager> m_ShadowManager; // Shadow Manager Instance
+
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vsShadow_Anim;     // VS For Animation Shadow
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vsShadow_Static;   // VS For Static OBJ Shadow
+    Microsoft::WRL::ComPtr<ID3D11InputLayout>  m_ilShadow_Static;   // Layout For Shader
+
+    Microsoft::WRL::ComPtr<ID3D11Buffer>       m_cbShadow;          // VS b0 For Shader
+
+    // Const Struct For Shadow Shader (b0)
+    // >> Alert <<
+    // Must Same To Vertex Shader Code
+    struct CB_Shadow_VS
+    {
+        DirectX::XMMATRIX World;
+        DirectX::XMMATRIX LightViewProjection;
+    };
 };
 
 #endif // SHADER_MANAGER_H

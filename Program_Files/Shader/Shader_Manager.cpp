@@ -11,6 +11,7 @@
 ==============================================================================*/
 #include "Shader_Manager.h"
 #include "debug_ostream.h"
+#include "Model.h"
 #include <fstream>
 #include <vector>
 
@@ -30,7 +31,8 @@ bool Shader_Manager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
     m_context = context;
 
     // --- Initialize 2D Shaders ---
-    D3D11_INPUT_ELEMENT_DESC layout2D[] = {
+    D3D11_INPUT_ELEMENT_DESC layout2D[] =
+    {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -39,7 +41,8 @@ bool Shader_Manager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
     if (!loadPixelShader("Resource/Shader/shader_pixel_2d.cso", m_ps2D)) return false;
 
     // --- Initialize 3D Shaders ---
-    D3D11_INPUT_ELEMENT_DESC layout3D[] = {
+    D3D11_INPUT_ELEMENT_DESC layout3D[] = 
+    {
         { "POSITION",  0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL",    0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR",     0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -50,7 +53,8 @@ bool Shader_Manager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
     if (!loadPixelShader("Resource/Shader/shader_pixel_field.cso", m_ps3D_Field)) return false;
 
     // --- Initialize Billboard Shaders ---
-    D3D11_INPUT_ELEMENT_DESC layoutBillboard[] = {
+    D3D11_INPUT_ELEMENT_DESC layoutBillboard[] = 
+    {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -60,7 +64,8 @@ bool Shader_Manager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
 
     // --- Initialize Skinning Shaders ---
     // Animation Model Need Bone ID And Weight.
-    D3D11_INPUT_ELEMENT_DESC layoutSkinning[] = {
+    D3D11_INPUT_ELEMENT_DESC layoutSkinning[] = 
+    {
         { "POSITION",     0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL",       0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR",        0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -217,7 +222,9 @@ void Shader_Manager::SetAlphaBlend(bool enable)
     }
 }
 
-// --- 2D Methods ---
+//============================================================
+//               --- Methods for 2D Shader ---
+//============================================================
 void Shader_Manager::Begin2D(Shader_Filter Filter)
 {
     m_context->VSSetShader(m_vs2D.Get(), nullptr, 0);
@@ -264,7 +271,9 @@ void Shader_Manager::SetTexture2D(ID3D11ShaderResourceView* textureView)
     m_context->PSSetShaderResources(0, 1, &textureView);
 }
 
-// --- 3D Methods ---
+//============================================================
+//               --- Methods for 3D Shader ---
+//============================================================
 void Shader_Manager::Begin3D(Shader_Filter Filter)
 {
     m_context->VSSetShader(m_vs3D.Get(), nullptr, 0);
@@ -274,6 +283,9 @@ void Shader_Manager::Begin3D(Shader_Filter Filter)
     // --- VS Buffers (b0, b1, b2) ---
     ID3D11Buffer* vsCbs[] = { m_cbWorld3D.Get(), m_cbView3D.Get(), m_cbProjection3D.Get() };
     m_context->VSSetConstantBuffers(0, 3, vsCbs); // b0, b1, b2
+
+    // --- Get Shadow Buffer ---
+    m_context->VSSetConstantBuffers(3, 1, m_cbShadow.GetAddressOf());
 
     // --- PS Buffers ---
     ID3D11Buffer* psCbs[] = {
@@ -307,18 +319,24 @@ void Shader_Manager::Begin3D(Shader_Filter Filter)
         break;
     }
 
+    // --- Set Shadow Buffer ---
+    m_context->PSSetSamplers(1, 1, m_sampler_Linear.GetAddressOf());
+
     SetAlphaBlend(false);
 }
 
 void Shader_Manager::Begin3D_For_Field(Shader_Filter Filter)
 {
-    m_context->VSSetShader(m_vs3D.Get(), nullptr, 0);
+    m_context->VSSetShader(m_vs3D.Get(), nullptr, 0);       // Use 3D VS
     m_context->PSSetShader(m_ps3D_Field.Get(), nullptr, 0); // PS for Field
     m_context->IASetInputLayout(m_il3D.Get());
 
     // --- VS Buffers (b0, b1, b2) ---
     ID3D11Buffer* vsCbs[] = { m_cbWorld3D.Get(), m_cbView3D.Get(), m_cbProjection3D.Get() };
     m_context->VSSetConstantBuffers(0, 3, vsCbs); // b0, b1, b2
+
+    // --- Get Shadow Buffer ---
+    m_context->VSSetConstantBuffers(3, 1, m_cbShadow.GetAddressOf());
 
     // --- PS Buffers (b1, b2, b3) ---
     ID3D11Buffer* psCbs[] = {
@@ -346,6 +364,9 @@ void Shader_Manager::Begin3D_For_Field(Shader_Filter Filter)
         m_context->PSSetSamplers(0, 1, m_sampler_AnisoTropic.GetAddressOf());
         break;
     }
+
+    // --- Set Shadow Buffer ---
+    m_context->PSSetSamplers(1, 1, m_sampler_Linear.GetAddressOf());
 
     SetAlphaBlend(false);
 }
@@ -382,6 +403,9 @@ void Shader_Manager::SetFieldTextures(ID3D11ShaderResourceView* texture0, ID3D11
     m_context->PSSetShaderResources(0, 2, textures);
 }
 
+//============================================================
+//           --- Methods for Billboard System ---
+//============================================================
 void Shader_Manager::Begin_Billboard()
 {
     m_context->VSSetShader(m_vsBillboard.Get(), nullptr, 0);
@@ -452,6 +476,9 @@ void Shader_Manager::SetPointLightCount(int count)
     m_PointLightData.point_light_count = count;
 }
 
+//============================================================
+//          --- Methods for 3D Model Animation ---
+//============================================================
 void Shader_Manager::Begin3D_Skinning(Shader_Filter Filter)
 {
     // Change Vertex Shader
@@ -512,12 +539,164 @@ void Shader_Manager::SetBones(const DirectX::XMFLOAT4X4* bones, int count)
     m_context->UpdateSubresource(m_cbBones.Get(), 0, nullptr, &cbData, 0, 0);
 }
 
-// --- Private Helper Methods ---
+//============================================================
+//             --- Methods For Shadow Mapping ---
+//============================================================
+bool Shader_Manager::InitShadow(int width, int height)
+{
+    // 1. Shadow Manager Init
+    m_ShadowManager = std::make_unique<Shadow_Manager>();
+    if (!m_ShadowManager->Init(m_device, width, height)) return false;
+
+    // 2. Load Shader
+    Microsoft::WRL::ComPtr<ID3D11InputLayout> tempIL;
+
+    // 3. Input Layout
+    D3D11_INPUT_ELEMENT_DESC layoutSkinning[] = // Animation Shadow
+    {
+        { "POSITION",     0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL",       0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR",        0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD",     0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT,  0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "BLENDWEIGHT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    if (!loadVertexShader("Resource/Shader/shader_vertex_shadow_animation.cso", m_vsShadow_Anim, tempIL, layoutSkinning, ARRAYSIZE(layoutSkinning))) return false;
+
+    D3D11_INPUT_ELEMENT_DESC layoutStatic[] = // Static OBJ Shadow
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    if (!loadVertexShader("Resource/Shader/shader_vertex_shadow.cso", m_vsShadow_Static, m_ilShadow_Static, layoutStatic, ARRAYSIZE(layoutStatic))) return false;
+
+    // Make Shadow Buffer (b0)
+    D3D11_BUFFER_DESC cbDesc = {};
+    cbDesc.ByteWidth = sizeof(CB_Shadow_VS); // World + LightVP, 128 bytes
+    cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbDesc.Usage = D3D11_USAGE_DEFAULT;
+
+    HRESULT hr = m_device->CreateBuffer(&cbDesc, nullptr, m_cbShadow.GetAddressOf());
+    if (FAILED(hr))
+    {
+        Debug::D_Out << "Failed to Create Shadow Constant Buffer!" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+void Shader_Manager::FinalShadow()
+{
+    m_ShadowManager.release();
+}
+
+void Shader_Manager::BeginShadow_Skinning()
+{
+    // 1. Shader Set
+    m_context->VSSetShader(m_vsShadow_Anim.Get(), nullptr, 0);
+    m_context->PSSetShader(nullptr, nullptr, 0); // Don`t Need Pixel Shader (Just Save Depth)
+
+    // 2. Set Input Layout For Animation
+    m_context->IASetInputLayout(m_ilSkinning.Get());
+
+    // 3. Set Buffer
+    m_context->VSSetConstantBuffers(0, 1, m_cbShadow.GetAddressOf());   // b0: World + LightVP
+    m_context->VSSetConstantBuffers(3, 1, m_cbBones.GetAddressOf());    // b3: Bones
+
+    // 4. Change Render Target To Shadow Map
+    m_ShadowManager->Begin_Shadow_Pass(m_context);
+}
+
+void Shader_Manager::BeginShadow_Static()
+{
+    // 1. Set Shader For Static OBJ
+    m_context->VSSetShader(m_vsShadow_Static.Get(), nullptr, 0);
+    m_context->PSSetShader(nullptr, nullptr, 0); // Turn Off The Pixel Shader
+
+    // 2. Set Layout
+    m_context->IASetInputLayout(m_ilShadow_Static.Get());
+
+    // 3. Set Buffer (b0: World + LightVP)
+    m_context->VSSetConstantBuffers(0, 1, m_cbShadow.GetAddressOf());
+}
+
+void Shader_Manager::EndShadow()
+{
+    if (m_ShadowManager)
+    {
+        m_ShadowManager->End_Shadow_Pass(m_context);
+    }
+}
+
+void Shader_Manager::DrawModelShadow(MODEL* model, const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightVP)
+{
+    if (!model) return;
+
+    // 1. Change Input Layout to match Model Buffer (Stride 80)
+    m_context->IASetInputLayout(m_ilSkinning.Get());
+
+    // 2. Update Matrix (b0)
+    SetShadowWorldMatrix(world, lightVP);
+
+    // 3. Define Vertex Struct for Stride
+    struct VertexBone
+    {
+        XMFLOAT3 pos;
+        XMFLOAT3 normal;
+        XMFLOAT4 color;
+        XMFLOAT2 uv;
+        XMUINT4  boneIds;
+        XMFLOAT4 weights;
+    };
+    UINT stride = sizeof(VertexBone);
+    UINT offset = 0;
+
+    // 4. Draw Shadows
+    for (unsigned int i = 0; i < model->AiScene->mNumMeshes; ++i)
+    {
+        ID3D11Buffer* vb = model->VertexBuffer[i];
+        ID3D11Buffer* ib = model->IndexBuffer[i];
+
+        // Set Buffers
+        m_context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
+        m_context->IASetIndexBuffer(ib, DXGI_FORMAT_R32_UINT, 0);
+
+        // Draw
+        m_context->DrawIndexed(model->AiScene->mMeshes[i]->mNumFaces * 3, 0, 0);
+    }
+
+    // 5. Restore Input Layout for Static Objects (e.g. Cubes, etc...)
+    m_context->IASetInputLayout(m_ilShadow_Static.Get());
+}
+
+void Shader_Manager::SetShadowWorldMatrix(const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightViewProj) 
+{
+    // Update Matrix (World + LightVP)
+
+    CB_Shadow_VS data = {};
+    data.World = XMMatrixTranspose(world);
+    data.LightViewProjection = XMMatrixTranspose(lightViewProj);
+
+    m_context->UpdateSubresource(m_cbShadow.Get(), 0, nullptr, &data, 0, 0);
+}
+
+void Shader_Manager::SetShadowMapTexture(ID3D11ShaderResourceView* shadowMapSRV)
+{
+    m_context->PSSetShaderResources(2, 1, &shadowMapSRV);
+}
+
+//============================================================
+//              --- Private Helper Methods ---
+//============================================================
 bool Shader_Manager::loadVertexShader(const char* filename, ComPtr<ID3D11VertexShader>& vs, ComPtr<ID3D11InputLayout>& il, const D3D11_INPUT_ELEMENT_DESC* layout, UINT numElements)
 {
     std::ifstream ifs(filename, std::ios::binary);
-    if (!ifs) {
-        Debug::D_Out << "Failed to open shader file: " << filename << std::endl;
+    if (!ifs) 
+    {
+        Debug::D_Out << "Failed to open shader file : " << filename << std::endl;
         return false;
     }
 
@@ -530,14 +709,16 @@ bool Shader_Manager::loadVertexShader(const char* filename, ComPtr<ID3D11VertexS
     ifs.close();
 
     HRESULT hr = m_device->CreateVertexShader(buffer.data(), buffer.size(), nullptr, &vs);
-    if (FAILED(hr)) {
-        Debug::D_Out << "Failed to create vertex shader: " << filename << std::endl;
+    if (FAILED(hr))
+    {
+        Debug::D_Out << "Failed to create vertex shader : " << filename << std::endl;
         return false;
     }
 
     hr = m_device->CreateInputLayout(layout, numElements, buffer.data(), buffer.size(), &il);
-    if (FAILED(hr)) {
-        Debug::D_Out << "Failed to create input layout for: " << filename << std::endl;
+    if (FAILED(hr))
+    {
+        Debug::D_Out << "Failed to create input layout for : " << filename << std::endl;
         return false;
     }
 
@@ -547,8 +728,9 @@ bool Shader_Manager::loadVertexShader(const char* filename, ComPtr<ID3D11VertexS
 bool Shader_Manager::loadPixelShader(const char* filename, ComPtr<ID3D11PixelShader>& ps)
 {
     std::ifstream ifs(filename, std::ios::binary);
-    if (!ifs) {
-        Debug::D_Out << "Failed to open shader file: " << filename << std::endl;
+    if (!ifs) 
+    {
+        Debug::D_Out << "Failed to open shader file : " << filename << std::endl;
         return false;
     }
 
@@ -561,8 +743,9 @@ bool Shader_Manager::loadPixelShader(const char* filename, ComPtr<ID3D11PixelSha
     ifs.close();
 
     HRESULT hr = m_device->CreatePixelShader(buffer.data(), buffer.size(), nullptr, &ps);
-    if (FAILED(hr)) {
-        Debug::D_Out << "Failed to create pixel shader: " << filename << std::endl;
+    if (FAILED(hr)) 
+    {
+        Debug::D_Out << "Failed to create pixel shader : " << filename << std::endl;
         return false;
     }
 

@@ -80,18 +80,14 @@ void Map_System_Finalize()
 
 void Map_System_Update(double elapsed_time)
 {
-	// --- Set Global Light ---
-	Light_Manager::GetInstance().Set_Ambient_Color({ 0.1f, 0.1f, 0.1f, 1.0f });
-	Light_Manager::GetInstance().Set_Directional_Light({ 0.0f, -1.0f, 0.0f, 0.0f }, { 0.8f, 0.8f, 0.8f, 1.0f });
+	// --- Update Global Light ---
+	Light_Manager::GetInstance().Global_Light_Update(elapsed_time);
 
 	// --- Set Player Light ---
 	Light_Manager::GetInstance().Set_Point_Light_Active_Count(1);
 	DirectX::XMFLOAT3 playerPos = Player_Get_POS();
 	playerPos.y += 1.0f;
 	Light_Manager::GetInstance().Set_Point_Light(0, playerPos, 3.0f, { 1.0f, 0.5f, 0.0f, 1.0f });
-
-	// --- Update Global Light ---
-	Light_Manager::GetInstance().Global_Light_Update(elapsed_time);
 }
 
 void Map_System_Draw()
@@ -138,6 +134,37 @@ void Map_System_Draw()
 			{
 				Debug_Collision_Draw(o.Collision, { 1.0f, 0.0f, 0.5f, 1.0f });
 			}
+		}
+	}
+}
+
+void Map_System_Draw_Shadow(const DirectX::XMMATRIX& LightViewProj)
+{
+	XMMATRIX mtxWorld = {};
+
+	for (const MapObject& o : Map_OBJ)
+	{
+		if (o.OBJ_ID == FIELD) continue; // Field Is Do Not Draw Shadow, Just Get
+
+		mtxWorld = XMMatrixIdentity();
+
+		switch (o.OBJ_ID)
+		{
+		case BALL:
+			if (o.ModelPtr != nullptr)
+			{
+				mtxWorld = XMMatrixTranslation(o.Position.x, o.Position.y, o.Position.z);
+				Shader_Manager::GetInstance()->DrawModelShadow(o.ModelPtr, mtxWorld, LightViewProj);
+			}
+			break;
+
+		case WALL:
+		case SILDE:
+		case BOX:
+			mtxWorld = XMMatrixTranslation(o.Position.x, o.Position.y, o.Position.z);
+			// Draw Cube Shadow (Use Cube_Draw_Shadow In Cube.cpp)
+			Cube_Draw_Shadow(mtxWorld, LightViewProj);
+			break;
 		}
 	}
 }

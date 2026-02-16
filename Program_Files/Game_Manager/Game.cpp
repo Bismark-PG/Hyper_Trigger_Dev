@@ -125,6 +125,7 @@ void Game_Update(double elapsed_time)
 	{
 		Debug_Camera_Update(elapsed_time);
 		Player_Model_Animation_Update(dt);
+		Map_System_Update(elapsed_time);
 		return;
 	}
 
@@ -191,8 +192,6 @@ void Game_Update(double elapsed_time)
 		return;
 	}
 
-	Light_Manager::GetInstance().Global_Light_Update(elapsed_time);
-
 	Map_System_Update(elapsed_time);
 	Player_Update(elapsed_time);
 	Bullet_Manager::Instance().Update(elapsed_time);
@@ -213,17 +212,54 @@ void Game_Update(double elapsed_time)
 
 void Game_Draw()
 {
+	// =========================================================
+	//				     [ Draw Shadow Pass ]
+	// =========================================================
+ 
+	// Get Light Direction, Player POS
+	XMFLOAT4 Light_Dir = Light_Manager::GetInstance().Get_Directional_Vector();
+	XMFLOAT3 Player_POS = Player_Get_POS();
+
+	// Get Light View-Projection For Player Shadow
+	XMMATRIX lightVP = Shader_Manager::GetInstance()->GetShadowManager()->GetLightViewProjMatrix(Light_Dir, Player_POS);
+
+	// Draw Shadow Animation OBJ
+	Shader_Manager::GetInstance()->BeginShadow_Skinning();
+	Player_Draw_Shadow(lightVP);
+
+	// Draw Shadow Map System
+	Shader_Manager::GetInstance()->BeginShadow_Static();
+	Map_System_Draw_Shadow(lightVP);
+	Enemy_Manager::GetInstance().Draw_Shadow(lightVP);
+
+	// End Shadow Pass
+	Shader_Manager::GetInstance()->EndShadow();
+
+	// =========================================================
+	//					  [ Draw Main Pass ]
+	// =========================================================
+
+	// --- Draw Game Resources ---
 	Direct3D_SetDepthEnable(true);
 	Shader_Manager::GetInstance()->Begin3D();
+
+	// Set Shader Map In Pixel Shader
+	ID3D11ShaderResourceView* shadowSRV = Shader_Manager::GetInstance()->GetShadowManager()->GetShadowMapSRV();
+	Shader_Manager::GetInstance()->SetShadowMapTexture(shadowSRV);
+
+	// --- Draw Sky Model ---
+	Sky_Draw();
+
+	// --- Set Global Light ---
 	Light_Manager::GetInstance().Global_Light_Set_Up();
 
-	Sky_Draw();
+	// --- Draw 3D Object ---
 	Map_System_Draw();
 	Player_Draw();
-
 	Bullet_Manager::Instance().Draw();
 	Enemy_Manager::GetInstance().Draw();
 
+	// --- Draw 2D Object, UI ---
 	Shader_Manager::GetInstance()->SetAlphaBlend(true);
 	Billboard_Manager::Instance().Draw();
 	Resource_Manager::GetInstance().Draw();

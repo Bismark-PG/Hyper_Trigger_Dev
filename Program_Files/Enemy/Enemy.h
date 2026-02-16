@@ -34,7 +34,9 @@ public:
 
 	// --- Main Logic ---
 	virtual void Update(double elapsed_time);
+
 	virtual void Draw();
+	void Draw_Shadow(const DirectX::XMMATRIX& LightViewProj);
 
 	void OnDamage(int damage);
 	bool IsDead() const { return m_HP <= 0; }

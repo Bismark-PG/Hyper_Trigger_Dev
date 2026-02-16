@@ -24,7 +24,10 @@ public:
 	void Final();
 
 	void Update(double elapsed_time);
+
 	void Draw();
+	void Draw_Shadow(const DirectX::XMMATRIX& LightViewProj);
+
 	void Reset();
 
 	// Call to spawn an enemy
