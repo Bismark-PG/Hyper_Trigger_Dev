@@ -13,6 +13,7 @@
 #include <wrl/client.h> // ComPtr
 #include "Shadow_Manager.h"
 #include <memory>
+#include <vector>
 
 enum class Shader_Filter
 {
@@ -57,6 +58,13 @@ struct UV_Parameter
 struct Bone_Buffer
 {
     DirectX::XMFLOAT4X4 boneTransforms[256]; // Warning : Must Be Same To Skinning V.S Scale
+};
+
+struct Shadow_Parameters
+{
+    float Spread;               // PCF Spread (0.0f ~ 1.0f) : 0.0f = Sharp Shadow, 1.0f = Soft Shadow
+    int   LoopRange;            // PCF Loop Count (1 ~ 5) : 1 = Sharp Shadow, 5 = Soft Shadow
+    DirectX::XMFLOAT2 Padding;  // Set 16Byte Alignment
 };
 
 struct MODEL;
@@ -121,11 +129,27 @@ public:
     // Helper Logic For Model Shadow Draw
     void DrawModelShadow(MODEL* model, const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightVP);
     
+	// Helper Logic For Animation Model Shadow Draw (Use Skinning Shader)
+    void DrawModelShadow_Animation(MODEL* model, const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightViewProj);
+
+	// Send Bone Data To Shadow Shader (Use For Animation Shadow)
+    void SetBoneTransform(const std::vector<DirectX::XMFLOAT4X4>& transforms);
+
     // Send World, Lighting Matrix To Shader
     void SetShadowWorldMatrix(const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightViewProj);
 
+    // Update Light View-Projection In Main Game Logic
+    void SetLightViewProjMatrix(const DirectX::XMMATRIX& lightViewProj);
+
     // Send Shadow Map Texture To Pixel Shader
     void SetShadowMapTexture(ID3D11ShaderResourceView* shadowMapSRV);
+
+    // Unbind Shadow Map
+    void UnbindShadowMapTexture();
+
+	// Set Shadow Quality In GUI (PCF Parameters)
+    void SetShadowQuality(float spread, int loopRange);
+    void ResetShadowQuality();
 
     // Getter
     Shadow_Manager* GetShadowManager() { return m_ShadowManager.get(); }
@@ -196,10 +220,20 @@ private:
     std::unique_ptr<Shadow_Manager> m_ShadowManager; // Shadow Manager Instance
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vsShadow_Anim;     // VS For Animation Shadow
+	Microsoft::WRL::ComPtr<ID3D11InputLayout>  m_ilShadow_Anim;	    // Layout For Animation Shadow Shader
+
     Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vsShadow_Static;   // VS For Static OBJ Shadow
     Microsoft::WRL::ComPtr<ID3D11InputLayout>  m_ilShadow_Static;   // Layout For Shader
 
     Microsoft::WRL::ComPtr<ID3D11Buffer>       m_cbShadow;          // VS b0 For Shader
+
+	// Rasterizer States For Shadow Pass
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RS_CullNone;
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RS_CullBack;
+
+	// Shadow Quality Parameters For GUI
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_cbShadowParams;          // PS b5 for Shadow Parameters
+    Shadow_Parameters m_ShadowData = { 1.0f, 1, {0,0} };
 
     // Const Struct For Shadow Shader (b0)
     // >> Alert <<

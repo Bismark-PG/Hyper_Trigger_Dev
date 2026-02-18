@@ -156,6 +156,7 @@ void Game_Texture_Load()
     Texture_M->Load("UI_Num_9", L"Resource/Texture/UI/Num/UI_Num_9.png");
     Texture_M->Load("UI_Num_MAX", L"Resource/Texture/UI/Num/UI_Num_Max.png");
     Texture_M->Load("UI_Num_Slash", L"Resource/Texture/UI/Num/UI_Num_Slash.png");
+    Texture_M->Load("UI_Percentage", L"Resource/Texture/UI/Num/UI_Percentage.png");
 
     Texture_M->Load("UI_Num_Button_L", L"Resource/Texture/UI/Num/UI_Button_L.png");
     Texture_M->Load("UI_Num_Button_R", L"Resource/Texture/UI/Num/UI_Button_R.png");

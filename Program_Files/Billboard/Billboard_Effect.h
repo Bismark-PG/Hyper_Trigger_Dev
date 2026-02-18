@@ -40,7 +40,7 @@ public:
 
     virtual void Update(double elapsed_time) override
     {
-        float dt = static_cast<float>(elapsed_time);
+        // float dt = static_cast<float>(elapsed_time);
 
         if (!m_IsActive) return;
 

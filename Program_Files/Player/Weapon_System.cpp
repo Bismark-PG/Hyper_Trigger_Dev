@@ -424,45 +424,47 @@ void Weapon_System::Ammo_Reload()
 void Weapon_System::SyncBGM()
 {
     // 1. Weapon Layer Flags
-    bool P_Kick = false;
-    bool P_Guitar = false;
-    bool P_Synth1 = false;
-    bool P_Synth2 = false;
+    bool active_flags[static_cast<int>(InstrumentType::SYNTH_2) + 1] = { false };
 
     // 2. Check Current Weapon Queue
     for (const auto& weapon : m_WeaponQueue)
     {
-        std::string inst = weapon.Spec.InstrumentName;
-
-        if (inst == "Kick") 
+        switch (weapon.Spec.InstrumentName)
         {
-            P_Kick = true;
-        }
-        else if (inst == "Guitar")
-        {
-            P_Guitar = true;
-        }
-        else if (inst == "Synth_1") 
-        {
-            P_Synth1 = true;
-        }
-        else if (inst == "Synth_2") 
-        {
-            P_Synth2 = true;
+		case InstrumentType::KICK:
+			active_flags[static_cast<int>(InstrumentType::KICK)] = true;
+			break;
+		case InstrumentType::GUITAR:
+			active_flags[static_cast<int>(InstrumentType::GUITAR)] = true;
+			break;
+		case InstrumentType::SYNTH_1:
+			active_flags[static_cast<int>(InstrumentType::SYNTH_1)] = true;
+			break;
+		case InstrumentType::SYNTH_2:
+			active_flags[static_cast<int>(InstrumentType::SYNTH_2)] = true;
+			break;
         }
     }
 
     // 3. Set Mixer Control Layer
 	// Will Be Game Start, Snare Layer On 
-    Mixer_Control_Layer("Snare", true);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::SNARE), true);
 
 	// Weapon Layers Set
-    Mixer_Control_Layer("Kick",     P_Kick);
-    Mixer_Control_Layer("Guitar",   P_Guitar);
-    Mixer_Control_Layer("Synth_1",  P_Synth1);
-    Mixer_Control_Layer("Synth_2",  P_Synth2);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::KICK),    active_flags[static_cast<int>(InstrumentType::KICK)]);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::GUITAR),  active_flags[static_cast<int>(InstrumentType::GUITAR)]);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::SYNTH_1), active_flags[static_cast<int>(InstrumentType::SYNTH_1)]);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::SYNTH_2), active_flags[static_cast<int>(InstrumentType::SYNTH_2)]);
 }
 
+void Weapon_System::SyncBGM_Game_Reset()
+{
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::SNARE),   true);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::KICK),    false);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::GUITAR),  false);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::SYNTH_1), false);
+    Mixer_Control_Layer(Get_Instrument_Key(InstrumentType::SYNTH_2), false);
+}
 
 void Weapon_System::Add_Ammo_Bonus(WeaponType type, int magBonus, int reserveBonus)
 {

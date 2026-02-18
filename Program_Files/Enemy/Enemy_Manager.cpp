@@ -92,58 +92,27 @@ void Enemy_Manager::Reset()
     }
 }
 
-void Enemy_Manager::Spawn(EnemyType type)
+void Enemy_Manager::Spawn(EnemyType type, const DirectX::XMFLOAT3& spawnPos)
 {
     // Get Player POS, Camera Info
-    DirectX::XMFLOAT3 P_Pos = Player_Get_POS();
-    float Max_Range = Player_Camera_Get_Far_Z() * 0.5f;
-    float Min_Range = 10.0f;
+    DirectX::XMFLOAT3 Pos = spawnPos;
 
-    // Get Enemy Fire Range
-    switch (type)
+    float Ground_Y = Mash_Field_Get_Height(Pos.x, Pos.z);
+
+	if (Ground_Y < -100.0f) // If Ground (Y) Is Too Low, Set Player Y Axis As Ground Y
     {
-    case EnemyType::GROUND_NORMAL:
-        Min_Range = Ground_Normal_Info.Fire_Range;
-        break;
-
-    case EnemyType::GROUND_DASHER:
-        Min_Range = Ground_Dasher_Info.Fire_Range; 
-        break;
-
-    case EnemyType::GROUND_TANKER: 
-        Min_Range = Ground_Tanker_Info.Fire_Range;
-        break;
-
-    case EnemyType::FLIGHT_NORMAL: 
-        Min_Range = Filght_Normal_Info.Fire_Range;
-        break;
-
-    case EnemyType::FLIGHT_DASHER:
-        Min_Range = Filght_Dasher_Info.Fire_Range;
-        break;
+        Ground_Y = Player_Get_POS().y;
     }
-
-    // If Min Range Is Over Max Range, Correct Max_Range
-    if (Min_Range >= Max_Range) 
-    {
-        Max_Range = Min_Range + 10.0f;
-    }
-
-    // Get Random POS
-    float distance = GetRandomFloat(Min_Range, Max_Range);
-    float angle = GetRandomFloat(0.0f, DirectX::XM_2PI);
-
-    DirectX::XMFLOAT3 SpawnPos = {};
-    SpawnPos.x = P_Pos.x + cosf(angle) * distance;
-    SpawnPos.z = P_Pos.z + sinf(angle) * distance;
-
-    // Correct Y Axis
-    float Ground_Y = Mash_Field_Get_Height(SpawnPos.x, SpawnPos.z);
 
     // Filght Type Y Axis Will Be Update For Enemy Manager, So Just Spawn
     if (type == EnemyType::FLIGHT_NORMAL || type == EnemyType::FLIGHT_DASHER)
     {
-        SpawnPos.y += 10.0f;
+        Pos.y = Ground_Y + 10.0f;
+    }
+    else
+    {
+		// Safe Spawn Position Check
+        Pos.y = Ground_Y + 1.0f;
     }
 
     // Is Ground Enemy?
@@ -166,7 +135,7 @@ void Enemy_Manager::Spawn(EnemyType type)
         // If Type Is Ground, Return
         if (isGroundRequest == isGroundObj)
         {
-            e->Activate(SpawnPos, type);
+            e->Activate(Pos, type);
             return;
         }
     }

@@ -40,6 +40,7 @@ void Player_Heal(int amount);
 int Player_Get_HP();
 int Player_Get_MaxHP();
 
+bool Player_Check_Is_Dead();
 bool Player_Is_Aiming_Now();
 
 void Player_LevelUp();

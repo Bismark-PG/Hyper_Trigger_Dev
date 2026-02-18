@@ -13,7 +13,6 @@
 #include "debug_ostream.h"
 #include "Model.h"
 #include <fstream>
-#include <vector>
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -64,7 +63,7 @@ bool Shader_Manager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
 
     // --- Initialize Skinning Shaders ---
     // Animation Model Need Bone ID And Weight.
-    D3D11_INPUT_ELEMENT_DESC layoutSkinning[] = 
+    D3D11_INPUT_ELEMENT_DESC layoutSkinning[] =  
     {
         { "POSITION",     0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "NORMAL",       0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -117,6 +116,11 @@ bool Shader_Manager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
     cbDesc.Usage = D3D11_USAGE_DYNAMIC;
     cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     m_device->CreateBuffer(&cbDesc, nullptr, &m_cbPointLightPS);
+
+    // PS b5: Shadow Parameters
+    cbDesc.ByteWidth = sizeof(Shadow_Parameters);
+    cbDesc.Usage = D3D11_USAGE_DEFAULT;
+    m_device->CreateBuffer(&cbDesc, nullptr, &m_cbShadowParams);
 
     // --- Create Sampler States ---
     D3D11_SAMPLER_DESC samplerDesc = {};
@@ -198,6 +202,40 @@ bool Shader_Manager::Init(ID3D11Device* device, ID3D11DeviceContext* context)
     boneBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     boneBufferDesc.Usage = D3D11_USAGE_DEFAULT;     // Will Be Update For Every Frame Or OBJ, So Use DEFAULT or DYNAMIC
     m_device->CreateBuffer(&boneBufferDesc, nullptr, &m_cbBones);
+
+	// ---  Rasterizer State (For Shadow Map) ---
+	D3D11_RASTERIZER_DESC rasterDesc = {};
+    rasterDesc.FillMode = D3D11_FILL_SOLID;
+    rasterDesc.CullMode = D3D11_CULL_NONE;
+    rasterDesc.FrontCounterClockwise = FALSE;
+    rasterDesc.DepthBias = 0;
+    rasterDesc.SlopeScaledDepthBias = 0.0f;
+    rasterDesc.DepthBiasClamp = 0.0f;
+    rasterDesc.DepthClipEnable = TRUE;
+    rasterDesc.ScissorEnable = FALSE;
+    rasterDesc.MultisampleEnable = FALSE;
+    rasterDesc.AntialiasedLineEnable = FALSE;
+
+    if (FAILED(m_device->CreateRasterizerState(&rasterDesc, m_RS_CullNone.GetAddressOf())))
+    {
+#if defined(DEBUG) || defined(_DEBUG)
+        MessageBox(nullptr, "Failed to create Cull None Mode", "Error", MB_OK);
+#else
+        MessageBox(nullptr, L"Failed to create Cull None Mode", L"Error", MB_OK);
+#endif
+        return false;
+    }
+
+    rasterDesc.CullMode = D3D11_CULL_BACK;
+    if (FAILED(m_device->CreateRasterizerState(&rasterDesc, m_RS_CullBack.GetAddressOf())))
+    {
+#if defined(DEBUG) || defined(_DEBUG)
+        MessageBox(nullptr, "Failed to create Cull Back Mode", "Error", MB_OK);
+#else
+        MessageBox(nullptr, L"Failed to create Cull Back Mode", L"Error", MB_OK);
+#endif
+        return false;
+    }
 
     return true;
 }
@@ -293,9 +331,10 @@ void Shader_Manager::Begin3D(Shader_Filter Filter)
         m_cbAmbient3D.Get(),      // b1
         m_cbDirectional3D.Get(),  // b2
         m_cbSpecular3D.Get(),     // b3
-        m_cbPointLightPS.Get()    // b4
+        m_cbPointLightPS.Get(),    // b4
+        m_cbShadowParams.Get()    // b5:
     };
-    m_context->PSSetConstantBuffers(0, 5, psCbs); // b0, b1, b2, b3, b4
+    m_context->PSSetConstantBuffers(0, 6, psCbs); // b0, b1, b2, b3, b4, b5
 
     D3D11_MAPPED_SUBRESOURCE mappedResource;
     if (SUCCEEDED(m_context->Map(m_cbPointLightPS.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
@@ -343,9 +382,11 @@ void Shader_Manager::Begin3D_For_Field(Shader_Filter Filter)
         m_cbDiffuseColorPS.Get(), // b0: Diffuse Color
         m_cbAmbient3D.Get(),      // b1
         m_cbDirectional3D.Get(),  // b2
-        m_cbSpecular3D.Get()      // b3
+        m_cbSpecular3D.Get(),     // b3
+		m_cbPointLightPS.Get(),   // b4 << Don't Use For Field
+        m_cbShadowParams.Get()    // b5
     };
-    m_context->PSSetConstantBuffers(0, 4, psCbs); // b1, b2, b3
+    m_context->PSSetConstantBuffers(0, 6, psCbs); // b1, b2, b3, b4 (Dummy), b5
 
     ID3D11Buffer* nullCB = nullptr;
     m_context->PSSetConstantBuffers(4, 1, &nullCB);
@@ -501,9 +542,10 @@ void Shader_Manager::Begin3D_Skinning(Shader_Filter Filter)
         m_cbAmbient3D.Get(),      // b1
         m_cbDirectional3D.Get(),  // b2
         m_cbSpecular3D.Get(),     // b3
-        m_cbPointLightPS.Get()    // b4
+        m_cbPointLightPS.Get(),    // b4
+        m_cbShadowParams.Get()    // b5
     };
-    m_context->PSSetConstantBuffers(0, 5, psCbs);
+    m_context->PSSetConstantBuffers(0, 6, psCbs);
 
     // Sampler Setting
     switch (Filter)
@@ -548,10 +590,7 @@ bool Shader_Manager::InitShadow(int width, int height)
     m_ShadowManager = std::make_unique<Shadow_Manager>();
     if (!m_ShadowManager->Init(m_device, width, height)) return false;
 
-    // 2. Load Shader
-    Microsoft::WRL::ComPtr<ID3D11InputLayout> tempIL;
-
-    // 3. Input Layout
+    // 2. Input Layout
     D3D11_INPUT_ELEMENT_DESC layoutSkinning[] = // Animation Shadow
     {
         { "POSITION",     0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -561,8 +600,8 @@ bool Shader_Manager::InitShadow(int width, int height)
         { "BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT,  0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "BLENDWEIGHT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
-    if (!loadVertexShader("Resource/Shader/shader_vertex_shadow_animation.cso", m_vsShadow_Anim, tempIL, layoutSkinning, ARRAYSIZE(layoutSkinning))) return false;
-
+    if (!loadVertexShader("Resource/Shader/shader_vertex_shadow_animation.cso", m_vsShadow_Anim, m_ilShadow_Anim, layoutSkinning, ARRAYSIZE(layoutSkinning))) return false;
+    
     D3D11_INPUT_ELEMENT_DESC layoutStatic[] = // Static OBJ Shadow
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -585,6 +624,8 @@ bool Shader_Manager::InitShadow(int width, int height)
         return false;
     }
 
+    SetShadowQuality(PCF_Spread, PCF_Loop); // Set Default Shadow Quality (Bias, PCF Sample Count)
+
     return true;
 }
 
@@ -600,13 +641,16 @@ void Shader_Manager::BeginShadow_Skinning()
     m_context->PSSetShader(nullptr, nullptr, 0); // Don`t Need Pixel Shader (Just Save Depth)
 
     // 2. Set Input Layout For Animation
-    m_context->IASetInputLayout(m_ilSkinning.Get());
+    m_context->IASetInputLayout(m_ilShadow_Anim.Get());
 
     // 3. Set Buffer
     m_context->VSSetConstantBuffers(0, 1, m_cbShadow.GetAddressOf());   // b0: World + LightVP
     m_context->VSSetConstantBuffers(3, 1, m_cbBones.GetAddressOf());    // b3: Bones
 
-    // 4. Change Render Target To Shadow Map
+	// 4. Set Rasterizer State To Cull None
+    m_context->RSSetState(m_RS_CullNone.Get());
+
+    // 5. Change Render Target To Shadow Map
     m_ShadowManager->Begin_Shadow_Pass(m_context);
 }
 
@@ -621,6 +665,9 @@ void Shader_Manager::BeginShadow_Static()
 
     // 3. Set Buffer (b0: World + LightVP)
     m_context->VSSetConstantBuffers(0, 1, m_cbShadow.GetAddressOf());
+
+	// 4. Set Rasterizer State To Cull None
+    m_context->RSSetState(m_RS_CullNone.Get());
 }
 
 void Shader_Manager::EndShadow()
@@ -629,6 +676,9 @@ void Shader_Manager::EndShadow()
     {
         m_ShadowManager->End_Shadow_Pass(m_context);
     }
+
+	// Restore Rasterizer State To Default
+    m_context->RSSetState(m_RS_CullBack.Get());
 }
 
 void Shader_Manager::DrawModelShadow(MODEL* model, const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightVP)
@@ -636,22 +686,13 @@ void Shader_Manager::DrawModelShadow(MODEL* model, const DirectX::XMMATRIX& worl
     if (!model) return;
 
     // 1. Change Input Layout to match Model Buffer (Stride 80)
-    m_context->IASetInputLayout(m_ilSkinning.Get());
+    m_context->IASetInputLayout(m_ilShadow_Static.Get());
 
     // 2. Update Matrix (b0)
     SetShadowWorldMatrix(world, lightVP);
 
     // 3. Define Vertex Struct for Stride
-    struct VertexBone
-    {
-        XMFLOAT3 pos;
-        XMFLOAT3 normal;
-        XMFLOAT4 color;
-        XMFLOAT2 uv;
-        XMUINT4  boneIds;
-        XMFLOAT4 weights;
-    };
-    UINT stride = sizeof(VertexBone);
+    UINT stride = sizeof(Vertex3D);
     UINT offset = 0;
 
     // 4. Draw Shadows
@@ -667,14 +708,83 @@ void Shader_Manager::DrawModelShadow(MODEL* model, const DirectX::XMMATRIX& worl
         // Draw
         m_context->DrawIndexed(model->AiScene->mMeshes[i]->mNumFaces * 3, 0, 0);
     }
+}
 
-    // 5. Restore Input Layout for Static Objects (e.g. Cubes, etc...)
-    m_context->IASetInputLayout(m_ilShadow_Static.Get());
+void Shader_Manager::DrawModelShadow_Animation(MODEL* model, const XMMATRIX& world, const XMMATRIX& lightViewProj)
+{
+    if (!model) return;
+
+	// 1. Animation Shadow Shader Setting
+	// (VS : Animation Shadow, PS : None)
+    m_context->VSSetShader(m_vsShadow_Anim.Get(), nullptr, 0);
+    m_context->PSSetShader(nullptr, nullptr, 0);
+
+	// 2. Change Input Layout to match Model Buffer (Stride 80)
+    m_context->IASetInputLayout(m_ilShadow_Anim.Get());
+
+	// 3-1. Bone Data Update (b3)
+    std::vector<XMFLOAT4X4> boneTransforms;
+    Model_Get_BoneTransforms(model, boneTransforms);
+
+	// 3-2. Buffer Update For Bones (b3)
+    SetBoneTransform(boneTransforms);
+    m_context->VSSetConstantBuffers(3, 1, m_cbBones.GetAddressOf());
+
+	// 4. Update World And LightVP Matrix To Shadow Buffer (b0)
+    CB_Shadow_VS data = {};
+    data.World = XMMatrixTranspose(world);
+    data.LightViewProjection = XMMatrixTranspose(lightViewProj);
+    m_context->UpdateSubresource(m_cbShadow.Get(), 0, nullptr, &data, 0, 0);
+    m_context->VSSetConstantBuffers(0, 1, m_cbShadow.GetAddressOf());
+
+	// 5. Draw Model With Shadow Shader
+    UINT stride = sizeof(Vertex3D);
+    UINT offset = 0;
+
+    for (size_t i = 0; i < model->AiScene->mNumMeshes; ++i)
+    {
+        m_context->IASetVertexBuffers(0, 1, &model->VertexBuffer[i], &stride, &offset);
+        m_context->IASetIndexBuffer(model->IndexBuffer[i], DXGI_FORMAT_R32_UINT, 0);
+
+        m_context->DrawIndexed(model->AiScene->mMeshes[i]->mNumFaces * 3, 0, 0);
+    }
+}
+
+void Shader_Manager::SetBoneTransform(const std::vector<XMFLOAT4X4>& transforms)
+{
+	// Skinning Buffer Struct (b3) - 256 Bones Max
+    struct SkinningBufferType
+    {
+        XMMATRIX bones[256];
+    };
+
+    static SkinningBufferType data = {};
+    ZeroMemory(&data, sizeof(SkinningBufferType));
+
+	// Safety Check To Avoid Exceeding Shader Array Size (256)
+    int count = (int)transforms.size();
+    if (count > 256) count = 256;
+
+    // Load Each Bone Matrix And Transpose It For HLSL
+    for (int i = 0; i < count; ++i)
+    {
+        XMMATRIX mtx = XMLoadFloat4x4(&transforms[i]);
+        data.bones[i] = XMMatrixTranspose(mtx);
+    }
+
+	// Safety Code For Unused Bones
+    for (int i = count; i < 256; ++i)
+    {
+        data.bones[i] = XMMatrixIdentity();
+    }
+
+	// Buffer Update (b3 : Bones)
+    m_context->UpdateSubresource(m_cbBones.Get(), 0, nullptr, &data, 0, 0);
 }
 
 void Shader_Manager::SetShadowWorldMatrix(const DirectX::XMMATRIX& world, const DirectX::XMMATRIX& lightViewProj) 
 {
-    // Update Matrix (World + LightVP)
+    // Update Matrix World And LightVP
 
     CB_Shadow_VS data = {};
     data.World = XMMatrixTranspose(world);
@@ -683,9 +793,45 @@ void Shader_Manager::SetShadowWorldMatrix(const DirectX::XMMATRIX& world, const 
     m_context->UpdateSubresource(m_cbShadow.Get(), 0, nullptr, &data, 0, 0);
 }
 
+void Shader_Manager::SetLightViewProjMatrix(const DirectX::XMMATRIX& lightViewProj)
+{
+    // Update Matrix Without World
+
+    CB_Shadow_VS data = {};
+    data.World = XMMatrixTranspose(XMMatrixIdentity()); // Dummy
+    data.LightViewProjection = XMMatrixTranspose(lightViewProj);
+
+    m_context->UpdateSubresource(m_cbShadow.Get(), 0, nullptr, &data, 0, 0);
+}
+
 void Shader_Manager::SetShadowMapTexture(ID3D11ShaderResourceView* shadowMapSRV)
 {
-    m_context->PSSetShaderResources(2, 1, &shadowMapSRV);
+    m_context->PSSetShaderResources(4, 1, &shadowMapSRV);
+}
+
+void Shader_Manager::UnbindShadowMapTexture()
+{
+    ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
+    m_context->PSSetShaderResources(4, 1, nullSRV);
+}
+
+void Shader_Manager::SetShadowQuality(float spread, int loopRange)
+{
+    if (!m_cbShadowParams) return;
+
+    m_ShadowData.Spread = spread;
+    m_ShadowData.LoopRange = loopRange;
+
+	// Update Shadow Quality Data To Shadow Buffer (b5)
+    m_context->UpdateSubresource(m_cbShadowParams.Get(), 0, nullptr, &m_ShadowData, 0, 0);
+}
+
+void Shader_Manager::ResetShadowQuality()
+{
+    if (m_ShadowManager)
+    {
+        m_ShadowManager->Reset_PCF();
+    }
 }
 
 //============================================================

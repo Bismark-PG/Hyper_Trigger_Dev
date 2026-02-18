@@ -123,15 +123,18 @@ void Setting_Initialize()
 
     // Left Center (25% Position)
     float Center_Left_X = BG_X + (BG_W * 0.25f);
+	// Center (50% Position)
+    float Center_X = BG_X + (BG_W * 0.5f);
     // Right Center (75% Position)
     float Center_Right_X = BG_X + (BG_W * 0.75f);
+    float UI_Gap = BG_W * 0.125f;
 
     // Sprint (Left Area)
-    UI_Sprint_X = Center_Left_X - (UI_W * 0.6f); // Text
-    UI_Sprint_BOX_X = Center_Left_X + (UI_H * 1.5f); // Box
+    UI_Sprint_X = Center_Left_X - (UI_W * 0.5f); // Text
+    UI_Sprint_BOX_X = Center_Left_X + UI_Gap; // Box
     // View (Right Area)
-    UI_View_X = Center_Right_X - (UI_W * 0.6f); // Text
-    UI_View_BOX_X = Center_Right_X + (UI_H * 1.5f); // Box
+    UI_View_X = Center_X + UI_Gap - (UI_W * 0.5f); // Text
+    UI_View_BOX_X = Center_Right_X + (UI_H * 0.5f); // Box
 
     // ---------------------------------------------------
     //                      Sound
@@ -140,16 +143,16 @@ void Setting_Initialize()
     float Arrow_Gap = UI_H * 1.2f;
 
     // BGM (Left Area)
-    UI_BGM_X = Center_Left_X - (UI_W * 0.5f);
-    float BGM_Control_Center = Center_Left_X + (UI_H * 2.0f);
+    UI_BGM_X = Center_Left_X - UI_Gap - (UI_W * 0.25f);
+    float BGM_Control_Center = Center_Left_X + UI_Gap - (UI_H * 0.5f);
 
     BGM_NUM_X = BGM_Control_Center;
     BGM_L_BUTTON_X = BGM_Control_Center - Arrow_Gap;
     BGM_R_BUTTON_X = BGM_Control_Center + Arrow_Gap;
 
     // SFX (Right Area)
-    UI_SFX_X = Center_Right_X - (UI_W * 0.5f);
-    float SFX_Control_Center = Center_Right_X + (UI_H * 2.0f);
+    UI_SFX_X = Center_Right_X - UI_Gap - (UI_W * 0.5f);
+    float SFX_Control_Center = Center_Right_X + UI_Gap - (UI_H * 1.5f);
 
     SFX_NUM_X = SFX_Control_Center;
     SFX_L_BUTTON_X = SFX_Control_Center - Arrow_Gap;
@@ -262,6 +265,14 @@ void Setting_Update(double elapsed_time)
                     Audio_Manager::GetInstance()->Play_SFX("Buffer_Move");
                     Update_Setting_Buffer(SETTING_BUFFER::SETTING_BACK);
                 }
+            }
+            else
+            {
+				if (Get_Setting_Buffer() != SETTING_BUFFER::SETTING_NONE)
+				{
+					Audio_Manager::GetInstance()->Play_SFX("Buffer_Move");
+					Update_Setting_Buffer(SETTING_BUFFER::SETTING_NONE);
+				}
             }
         }
 
@@ -463,7 +474,8 @@ void Setting_Update(double elapsed_time)
                 // Box Click Check
                 if (Click_Trigger)
                 {
-                    if (Is_Mouse_In_RECT(Mouse_X, Mouse_Y, UI_Sprint_BOX_X, UI_Toggle_Y, UI_H, UI_H))
+                    if (Is_Mouse_In_RECT(Mouse_X, Mouse_Y, UI_Sprint_BOX_X, UI_Toggle_Y, UI_H, UI_H) ||
+                        Is_Mouse_In_RECT(Mouse_X, Mouse_Y, UI_Sprint_X, UI_Toggle_Y, UI_W + UI_H * 2, UI_H))
                     {
                         Is_Sprint_Toggle = !Is_Sprint_Toggle;
                         Audio_Manager::GetInstance()->Play_SFX("Buffer_Move");
@@ -492,7 +504,8 @@ void Setting_Update(double elapsed_time)
             {
                 if (Click_Trigger)
                 {
-                    if (Is_Mouse_In_RECT(Mouse_X, Mouse_Y, UI_View_BOX_X, UI_Toggle_Y, UI_H, UI_H))
+                    if (Is_Mouse_In_RECT(Mouse_X, Mouse_Y, UI_View_BOX_X, UI_Toggle_Y, UI_H, UI_H) ||
+                        Is_Mouse_In_RECT(Mouse_X, Mouse_Y, UI_View_X, UI_Toggle_Y, UI_W + UI_H * 2, UI_H))
                     {
                         Is_Right_View = !Is_Right_View;
                         Audio_Manager::GetInstance()->Play_SFX("Buffer_Move");
@@ -610,11 +623,13 @@ void Setting_Draw()
     bool Is_Sens_Focus = (Get_Setting_Buffer() == SETTING_BUFFER::SENSITIVITY || Get_Setting_State() == SOUND_SETTING_STATE::SENSITIVITY_SETTING);
     // Draw Text (Needs Texture)
     if (UI_Sens_Text != -1)
+    {
         Sprite_Draw(UI_Sens_Text, UI_Sens_X, UI_Sens_Y, UI_W, UI_H, 0.0f, Is_Sens_Focus ? Select_Color : Normal_Color);
+    }
 
     // Slider Bar & Box
-    Sprite_Draw(UI_Pixel_White, Slider_Bar_X, Slider_Bar_Y, Slider_Bar_W, Slider_Bar_H, 0.0f, Is_Sens_Focus ? Select_Color : Normal_Color);
-    Sprite_Draw(UI_Pixel_White, Slider_Box_X, Slider_Box_Y, Slider_Box_Size, Slider_Box_Size, 45.0f, Is_Sens_Focus ? Select_Color : Light_Gray);
+    Sprite_Draw(UI_Pixel_White, Slider_Bar_X, Slider_Bar_Y, Slider_Bar_W, Slider_Bar_H, 0.0f, Light_Gray);
+    Sprite_Draw(UI_Pixel_White, Slider_Box_X, Slider_Box_Y, Slider_Box_Size, Slider_Box_Size, 45.0f, Is_Sens_Focus ? Select_Color : Normal_Color);
 
     // ------------------------------------------------------------
     // 2. Row 2: Toggle (Sprint & View)
@@ -624,26 +639,25 @@ void Setting_Draw()
     bool Is_Sprint_Focus = (Get_Setting_Buffer() == SETTING_BUFFER::SPRINT_TOGGLE || Get_Setting_State() == SOUND_SETTING_STATE::SPRINT_SETTING);
     XMFLOAT4 Sprint_Color = Is_Sprint_Focus ? Select_Color : Normal_Color;
 
-    // Text (Sprint) - If texture missing, use temp or skip
-    if (UI_Run_Toggle != -1)
-        Sprite_Draw(UI_Run_Toggle, UI_Sprint_X, UI_Toggle_Y, UI_W, UI_H, 0.0f, Sprint_Color);
-
-    // Check Box
+    // Text (Sprint) And Check Box
     int Sprint_Tex = Is_Sprint_Toggle ? UI_Toggle_Box_Check : UI_Toggle_Box_Idle;
-    Sprite_Draw(Sprint_Tex, UI_Sprint_BOX_X, UI_Toggle_Y, UI_H, UI_H, 0.0f, Sprint_Color);
+    if (UI_Run_Toggle != -1 || Sprint_Tex != -1)
+    {
+        Sprite_Draw(UI_Run_Toggle, UI_Sprint_X, UI_Toggle_Y, UI_W, UI_H, 0.0f, Sprint_Color);
+        Sprite_Draw(Sprint_Tex, UI_Sprint_BOX_X, UI_Toggle_Y, UI_H, UI_H, 0.0f, Sprint_Color);
+    }
 
     // B. View (Right)
     bool Is_View_Focus = (Get_Setting_Buffer() == SETTING_BUFFER::SHOULDER_VIEW || Get_Setting_State() == SOUND_SETTING_STATE::VIEW_SETTING);
     XMFLOAT4 View_Color = Is_View_Focus ? Select_Color : Normal_Color;
 
-    // Text (View)
-    if (UI_View != -1)
-        Sprite_Draw(UI_View, UI_View_X, UI_Toggle_Y, UI_W, UI_H, 0.0f, View_Color);
-
-    // View Icon (L or R)
+    // Text And View Icon (L or R)
     int View_Tex = Is_Right_View ? UI_Toggle_Box_R : UI_Toggle_Box_L;
-    Sprite_Draw(View_Tex, UI_View_BOX_X, UI_Toggle_Y, UI_H, UI_H, 0.0f, View_Color);
-
+    if (UI_View != -1 || View_Tex != -1)
+    {
+        Sprite_Draw(UI_View, UI_View_X, UI_Toggle_Y, UI_W, UI_H, 0.0f, View_Color);
+        Sprite_Draw(View_Tex, UI_View_BOX_X, UI_Toggle_Y, UI_H, UI_H, 0.0f, View_Color);
+    }
 
     // ------------------------------------------------------------
     // 3. Row 3: Audio (BGM & SFX)
@@ -661,7 +675,9 @@ void Setting_Draw()
     // Number
     int bgmIdx = static_cast<int>(Get_BGM_Scale_Buffer());
     if (bgmIdx >= 0 && bgmIdx <= 10)
+    {
         Sprite_Draw(Num_Arr[bgmIdx], BGM_NUM_X, UI_Sound_Y, UI_H, UI_H, 0.0f, BGM_Color);
+    }
 
     // B. SFX (Right)
     bool Is_SFX_Focus = (Get_Setting_Buffer() == SETTING_BUFFER::SFX_SETTING || Get_Setting_State() == SOUND_SETTING_STATE::SFX_SETTING);
@@ -675,8 +691,9 @@ void Setting_Draw()
     // Number
     int sfxIdx = static_cast<int>(Get_SFX_Scale_Buffer());
     if (sfxIdx >= 0 && sfxIdx <= 10)
+    {
         Sprite_Draw(Num_Arr[sfxIdx], SFX_NUM_X, UI_Sound_Y, UI_H, UI_H, 0.0f, SFX_Color);
-
+    }
 
     // ------------------------------------------------------------
     // 4. Back Button

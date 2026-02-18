@@ -12,6 +12,7 @@
 #include "Player_Camera.h"
 #include "Model.h"
 #include "Debug_Collision.h"
+#include "Shader_Manager.h"
 
 using namespace DirectX;
 
@@ -405,30 +406,37 @@ void GUI_World_Editor()
 
     if (ImGui::CollapsingHeader("Global Light Control", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        // Manage Sun POS
-        ImGui::Text("Sun Position");
-        // -1.5 ~ 1.5 (Degree : -90 ~ 90)
-        ImGui::SliderFloat("Time (Angle)", &g_Sun_Angle, -1.6f, 1.6f);
-        ImGui::SliderFloat("Tilt (Season)", &g_Sun_Tilt, -1.0f, 1.0f);
+		ImGui::Text("Sun Settings");
+		
+		// Manage Shadow Distance
+		ImGui::SliderFloat("Sun Distance", &g_Sun_Dist, 10.0f, 500.0f);
 
-		// Sun Rotation
+		// Sun Auto Rotation
 		ImGui::Separator();
 		ImGui::Checkbox("Auto Rotation", &g_IsSunRotation);
 
 		if (g_IsSunRotation)
 		{
+			// If Auto, Just Manage Speed, Tilt
 			ImGui::SliderFloat("Rotation Speed", &g_Sun_Speed, 0.0f, 2.0f);
+			ImGui::SliderFloat("Tilt (Z-Axis)", &g_Sun_Tilt, -1.0f, 1.0f);
+
+			float Dir[3] = { g_Sun_Dir.x, g_Sun_Dir.y, g_Sun_Dir.z };
+			ImGui::InputFloat3("Sun Dir (Auto)", Dir, "%.2f", ImGuiInputTextFlags_ReadOnly);
+		}
+		else
+		{
+			// If Not Auto, Can Manage Sun POS
+			ImGui::Text("Manual Direction Control");
+			ImGui::DragFloat3("Sun Direction (XYZ)", &g_Sun_Dir.x, 0.01f, -1.0f, 1.0f);
 		}
 
 		ImGui::Separator();
 
         // Manage Sun Light Color
-        ImGui::Text("Sun Color");
-        ImGui::ColorEdit4("Dir Color", &g_Sun_Color.x); // x,y,z,w =  r,g,b,a
-
-        // Manage Ambient Light Color
-        ImGui::Text("Ambient Color");
-        ImGui::ColorEdit4("Amb Color", &g_Ambient_Color.x);
+		ImGui::Text("Light Color");
+		ImGui::ColorEdit4("Sun Color", &g_Sun_Color.x);
+		ImGui::ColorEdit4("Ambient Color", &g_Ambient_Color.x);
     }
 
 	ImGui::Separator();
@@ -438,10 +446,27 @@ void GUI_World_Editor()
 	}
 
     // Map System
-    if (ImGui::CollapsingHeader("Map Object Control"))
+    if (ImGui::CollapsingHeader("Shadow Settings"))
     {
-        ImGui::Text("Coming Soon...");
+		if (ImGui::SliderFloat("Shadow Spread (Blur)", &PCF_Spread, 0.1f, 5.0f))
+		{
+			Shader_Manager::GetInstance()->SetShadowQuality(PCF_Spread, PCF_Loop);
+		}
+
+		if (ImGui::SliderInt("Sample Range (Quality)", &PCF_Loop, 1, 4))
+		{
+			Shader_Manager::GetInstance()->SetShadowQuality(PCF_Spread, PCF_Loop);
+		}
+
+		ImGui::Text("Samples: %d x %d = %d", (PCF_Loop * 2 + 1), (PCF_Loop * 2 + 1), (PCF_Loop * 2 + 1) * (PCF_Loop * 2 + 1));
     }
+
+	ImGui::Separator();
+	if (ImGui::Button("Reset PCF Parameters (Default)", ImVec2(-1, 30)))
+	{
+		Shader_Manager::GetInstance()->ResetShadowQuality();
+		Shader_Manager::GetInstance()->SetShadowQuality(PCF_Spread, PCF_Loop);
+	}
 
     ImGui::End();
 }

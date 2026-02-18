@@ -20,8 +20,8 @@ void Mixer_Init()
     Is_First_Entry = true;
 
     // Load BGM
-    std::vector<std::string> bgmParts = { "Bass", "Guitar", "Kick", "Snare", "Synth_1", "Synth_2" };
-    Audio_Manager::GetInstance()->Play_Layered_BGM(bgmParts, true);
+    std::vector<std::string> BGM_Parts = { "Bass", "Guitar", "Kick", "Snare", "Synth_1", "Synth_2" };
+    Audio_Manager::GetInstance()->Play_Layered_BGM(BGM_Parts, true);
 
     // Set Volume
     Audio_Manager::GetInstance()->Set_Layer_Volume("Bass",    1.0f);

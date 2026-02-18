@@ -69,18 +69,6 @@ float g_R_Toe_X = FOOT_X_DEF, g_R_Toe_Y = 0.0f, g_R_Toe_Z = FOOT_Z_DEF;
 bool Is_Bone_AABB_Draw = true;;
 float Bone_AABB = Bone_AABB_Defalut;
 
-//3D頂点構造体
-struct Vertex3D
-{
-	XMFLOAT3 position = {}; // 頂点座標
-	XMFLOAT3 normal   = {}; //法線
-	XMFLOAT4 color	  = {}; // 色
-	XMFLOAT2 texcoord = {}; // UV
-
-	int BoneIndex[4] = { 0,0,0,0 };  
-	float BoneWeight[4] = { 0,0,0,0 };
-};
-
 static int g_TextureWhite = -1; // "TextSample" ID
 
 //-------------------Healper Logic--------------------//
@@ -640,6 +628,20 @@ void Model_Play_Animation(MODEL* model, const std::string& animName, bool loop)
 			model->CurrentAnim = it->second;
 			model->AnimationTime = 0.0f; // Time Reset
 		}
+	}
+}
+
+void Model_Get_BoneTransforms(MODEL* model, std::vector<DirectX::XMFLOAT4X4>& outTransforms)
+{
+	if (!model) return;
+
+	outTransforms.clear();
+	outTransforms.resize(model->BoneInfos.size());
+
+	for (size_t i = 0; i < model->BoneInfos.size(); ++i)
+	{
+		XMMATRIX finalMtx = model->BoneInfos[i].FinalTransform;
+		XMStoreFloat4x4(&outTransforms[i], finalMtx);
 	}
 }
 

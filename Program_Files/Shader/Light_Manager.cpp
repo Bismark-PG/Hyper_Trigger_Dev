@@ -12,8 +12,10 @@
 using namespace DirectX;
 
 bool g_IsSunRotation = false;
-float g_Sun_Angle = S_Angle, g_Sun_Tilt = S_Tlit, g_Sun_Speed = S_Speed;
-XMFLOAT4 g_Sun_Color = C_Son, g_Ambient_Color = C_Ambient;
+float g_Sun_Angle = S_Angle, g_Sun_Tilt = S_Tlit, g_Sun_Speed = S_Speed, g_Sun_Dist = S_Dist;
+XMFLOAT3 g_Sun_Dir = S_Dir;
+XMFLOAT4 g_Sun_Color = C_Son;
+XMFLOAT4 g_Ambient_Color = C_Ambient;
 
 Light_Manager& Light_Manager::GetInstance()
 {
@@ -25,17 +27,14 @@ void Light_Manager::Init()
 {
     Global_Light_Reset();
 
-    // Ambient Light
+    // Set Ambient, Sun Light Color
     // Default : Dark Gray ( 0.1f, 0.1f, 0.1f, 1.0f )
     m_Ambient.Color = g_Ambient_Color;
     m_Directional.Color = g_Sun_Color;
 
-    // Sun Directional (Global Light)
-	// Default : Downward Light Gray
-    XMVECTOR Dir = XMVectorSet(0.5f, -1.0f, 0.5f, 0.0f);
-    Dir = XMVector3Normalize(Dir);
-    XMStoreFloat4(&m_Directional.Vector, Dir);
-
+    // Set Sun Light Direction
+	// Default : Top Down
+    Set_Directional_Light({ g_Sun_Dir.x, g_Sun_Dir.y, g_Sun_Dir.z, 0.0f }, g_Sun_Color);
 
 	// Point Lights Initialization
     for (int i = 0; i < 4; i++)
@@ -74,20 +73,13 @@ void Light_Manager::Global_Light_Update(double elapsed_time)
     {
         g_Sun_Angle += g_Sun_Speed * dt;
 
-        // Rotation 360 Degree
-        // If Want Teleport, Use "XM_PI"
-        if (g_Sun_Angle > DirectX::XM_2PI)
-        {
-            g_Sun_Angle -= DirectX::XM_2PI;
-        }
+        g_Sun_Dir.x = sinf(g_Sun_Angle);
+        g_Sun_Dir.y = -cosf(g_Sun_Angle);
+        g_Sun_Dir.z = g_Sun_Tilt;
     }
 
     // --- Set Global Light ---
-    float x = sinf(g_Sun_Angle);
-    float y = -cosf(g_Sun_Angle);
-    float z = g_Sun_Tilt;
-
-    Set_Directional_Light({ x, y, z, 0.0f }, g_Sun_Color);
+    Set_Directional_Light({ g_Sun_Dir.x, g_Sun_Dir.y, g_Sun_Dir.z, 0.0f }, g_Sun_Color);
     Set_Ambient_Color(g_Ambient_Color);
 }
 
@@ -125,9 +117,14 @@ void Light_Manager::Global_Light_Reset()
 
     g_Sun_Angle = S_Angle;
     g_Sun_Tilt = S_Tlit;
+
     g_Sun_Speed = S_Speed;
 
+    g_Sun_Dist = S_Dist;
+    g_Sun_Dir = S_Dir;
+
     g_Sun_Color = C_Son;
+
     g_Ambient_Color = C_Ambient;
 
     // Reset

@@ -8,6 +8,7 @@
 #include "Controller_Input.h"
 #include "Audio_Manager.h"
 #include "direct3d.h"
+#include "Shader_Manager.h"
 
 static int UI_Controller_BG = -1;
 static int UI_Controller_Input = -1;

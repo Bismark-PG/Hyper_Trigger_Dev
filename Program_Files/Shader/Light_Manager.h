@@ -12,11 +12,15 @@
 #include <DirectXMath.h>
 
 extern bool g_IsSunRotation;
-extern float g_Sun_Angle, g_Sun_Tilt, g_Sun_Speed;
-extern DirectX::XMFLOAT4 g_Sun_Color, g_Ambient_Color;
+extern float g_Sun_Angle, g_Sun_Tilt, g_Sun_Speed, g_Sun_Dist;            
+extern DirectX::XMFLOAT3 g_Sun_Dir;
+extern DirectX::XMFLOAT4 g_Sun_Color;
+extern DirectX::XMFLOAT4 g_Ambient_Color;
 
-constexpr float S_Angle = 0.0f, S_Tlit = 0.05f, S_Speed = 0.1f;
-constexpr DirectX::XMFLOAT4 C_Son = { 0.8f, 0.8f, 0.8f, 1.0f }, C_Ambient = { 0.1f, 0.1f, 0.1f, 1.0f };
+constexpr float S_Angle = 0.0f, S_Tlit = 0.05f, S_Speed = 0.1f, S_Dist = 100.0f;
+constexpr DirectX::XMFLOAT3 S_Dir = { -0.25f, -1.0f, 0.01f };
+constexpr DirectX::XMFLOAT4 C_Son = { 0.8f, 0.8f, 0.8f, 1.0f };
+constexpr DirectX::XMFLOAT4 C_Ambient = { 0.1f, 0.1f, 0.1f, 1.0f };
 
 class Light_Manager
 {

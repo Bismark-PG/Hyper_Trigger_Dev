@@ -37,7 +37,8 @@ public:
     const std::deque<WeaponState>& GetInventory() const;
 
     // Set BGM According to Weapon
-	void SyncBGM();            
+	void SyncBGM();
+	void SyncBGM_Game_Reset();
 
     // --- Level Bonus Operations ---
     void Add_Ammo_Bonus(WeaponType type, int magBonus, int reserveBonus);

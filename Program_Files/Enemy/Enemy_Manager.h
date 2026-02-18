@@ -30,8 +30,7 @@ public:
 
 	void Reset();
 
-	// Call to spawn an enemy
-	void Spawn(EnemyType type);
+	void Spawn(EnemyType type, const DirectX::XMFLOAT3& spawnPos);
 
 	std::vector<Enemy*>& Get_Active_List()
 	{ 

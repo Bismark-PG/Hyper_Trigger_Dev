@@ -63,6 +63,12 @@ VS_OUT main(VS_IN vi)
         // No Skinning Data, Just Use Local Data
         posAccum = vi.posL;
     }
+    
+    if (posAccum.w == 0.0f)
+    {
+        posAccum = vi.posL;
+        posAccum.w = 1.0f; 
+    }
 
     // --- Get Matrix ---
     // World -> Light View -> Light Projection

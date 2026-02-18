@@ -32,7 +32,7 @@ static int UI_Ammo_BG = -1, UI_Icon_HG = -1, UI_Icon_AR = -1, UI_Icon_MG = -1, U
 static int UI_Reload = -1, UI_Prompt = -1;
 
 // Numbers
-static int UI_Num[10] = { -1 }, UI_Num_Slash = -1;
+static int UI_Num[10] = { -1 }, UI_Num_Slash = -1, UI_Percentage = -1;
 
 // --- POS ---
 // Aim
@@ -108,7 +108,7 @@ void Game_UI_Initialize()
 
     // 4. HP Bar
     HP_BG_X = EXP_BG_X;
-    HP_BG_Y = EXP_BG_Y - (Bar_H * 1.2f);
+    HP_BG_Y = EXP_BG_Y - Bar_H;
 
     // HP: [Big Pad] [Fill ----->] [Small Pad]
     HP_Min_X = HP_BG_X + (Bar_W * Padding_Big);
@@ -176,9 +176,13 @@ void Game_UI_Update(double elapsed_time)
     int curHP = Player_Get_HP();
     int maxHP = Player_Get_MaxHP();
     if (maxHP > 0)
+    {
         Current_HP_Ratio = static_cast<float>(curHP) / static_cast<float>(maxHP);
+    }
     else
+    {
         Current_HP_Ratio = 0.0f;
+    }
 
     // EXP Ratio Calculation
     Current_EXP_Ratio = Resource_Manager::GetInstance().Get_Exp_Ratio();
@@ -243,10 +247,14 @@ void Game_UI_Update(double elapsed_time)
         // Safety Clamp
         if (Ratio > 1.0f) Ratio = 1.0f;
 
-        // Formula : (Max Speed * Ratio) * dt
-        float CurrentSpeed = Reload_Base_Speed * Ratio;
+        if (Ratio > 0.0f)
+        {
+			// Ease In-Out Cubic (0.0 ~ 1.0)
+            float Accelerated_Ratio = Ratio * Ratio;
 
-        Reload_Rotation -= CurrentSpeed * dt;
+			// Angle = Ratio * Reload_Base_Speed(4 Full Rotation Per Second)
+            Reload_Rotation = Accelerated_Ratio * Reload_Base_Speed;
+        }
     }
     else
     {
@@ -279,9 +287,10 @@ void Game_UI_Draw()
 {
     Direct3D_SetDepthEnable(false);
     Shader_Manager::GetInstance()->Begin2D();
+    float Texture_Padding_Ratio = 0.25f;
 
     // -----------------------------------------------------------
-    // 1. HP Bar (Left -> Right)
+    // 1-1. HP Bar (Left -> Right)
     // -----------------------------------------------------------
     Sprite_Draw(UI_HP_Bar, HP_BG_X, HP_BG_Y, Bar_W, Bar_H);
 
@@ -290,14 +299,36 @@ void Game_UI_Draw()
         float Tex_W = static_cast<float>(Texture_Manager::GetInstance()->Get_Width(UI_HP_Fill));
         float Tex_H = static_cast<float>(Texture_Manager::GetInstance()->Get_Height(UI_HP_Fill));
 
-        float Draw_Width = (HP_Max_X - HP_Min_X) * Current_HP_Ratio;
-        float UV_Width = Tex_W * Current_HP_Ratio;
+        float Adjusted_Ratio = Texture_Padding_Ratio + (1.0f - Texture_Padding_Ratio) * Current_HP_Ratio;
+
+        float Draw_Width = (HP_Max_X - HP_Min_X) * Adjusted_Ratio;
+        float UV_Width = Tex_W * Adjusted_Ratio;
 
         Sprite_UV_Draw(UI_HP_Fill, HP_Min_X, HP_BG_Y, Draw_Width, Bar_H, A_Zero, A_Zero, UV_Width, Tex_H);
     }
 
     // -----------------------------------------------------------
-    // 2. EXP Bar (Left -> Right)
+	// 1-2. Draw HP Text (Current HP / Max HP)
+    // -----------------------------------------------------------
+    int curHP = Player_Get_HP(), maxHP = Player_Get_MaxHP();
+    char HP_Buffer[32];
+    sprintf_s(HP_Buffer, "%d / %d", curHP, maxHP);
+
+	// Number Size
+    float Num_H = Bar_H * 0.325f, Num_W = Num_H * 0.5f;
+
+	// Total Text Width = (Count) * (Width) * (0.8f)
+    size_t HP_Len = strlen(HP_Buffer);
+    float Total_HP_Text_W = HP_Len * (Num_W * 0.8f);
+
+	// Get Center POS of HP Bar
+    float HP_Center_X = HP_BG_X + (Bar_W * 0.5f), HP_Center_Y = HP_BG_Y + (Bar_H - Num_H) * 0.5f;
+    float HP_Start_X = HP_Center_X - (Total_HP_Text_W * 0.5f);
+
+    Draw_Number_String(HP_Buffer, HP_Start_X, HP_Center_Y, Num_W, Num_H);
+
+    // -----------------------------------------------------------
+    // 2-1. EXP Bar (Left -> Right)
     // -----------------------------------------------------------
     Sprite_Draw(UI_EXP_Bar, EXP_BG_X, EXP_BG_Y, Bar_W, Bar_H);
 
@@ -306,11 +337,30 @@ void Game_UI_Draw()
         float Tex_W = static_cast<float>(Texture_Manager::GetInstance()->Get_Width(UI_EXP_Fill));
         float Tex_H = static_cast<float>(Texture_Manager::GetInstance()->Get_Height(UI_EXP_Fill));
 
-        float Draw_Width = (EXP_Max_X - EXP_Min_X) * Current_EXP_Ratio;
-        float UV_Width = Tex_W * Current_EXP_Ratio;
+        float Adjusted_Ratio = Texture_Padding_Ratio + (1.0f - Texture_Padding_Ratio) * Current_EXP_Ratio;
+
+        float Draw_Width = (EXP_Max_X - EXP_Min_X) * Adjusted_Ratio;
+        float UV_Width = Tex_W * Adjusted_Ratio;
 
         Sprite_UV_Draw(UI_EXP_Fill, EXP_Min_X, EXP_BG_Y, Draw_Width, Bar_H, A_Zero, A_Zero, UV_Width, Tex_H);
     }
+
+    // -----------------------------------------------------------
+	// 2-2. EXP Text (Percentage)
+    // -----------------------------------------------------------
+    int ExpPercent = static_cast<int>(Current_EXP_Ratio * 100.0f);
+    char EXP_Buffer[32];
+    sprintf_s(EXP_Buffer, "%d%%", ExpPercent);
+
+	// Total Text Width = (Count) * (Width) * (0.8f)
+    size_t EXP_Len = strlen(EXP_Buffer);
+    float Total_EXP_Text_W = EXP_Len * (Num_W * 0.8f);
+
+	// Get Center POS of EXP Bar
+    float EXP_Center_X = EXP_BG_X + (Bar_W * 0.5f), EXP_Center_Y = EXP_BG_Y + (Bar_H - Num_H) * 0.5f;
+    float EXP_Start_X = EXP_Center_X - (Total_EXP_Text_W * 0.5f);
+
+    Draw_Number_String(EXP_Buffer, EXP_Start_X, EXP_Center_Y, Num_W, Num_H);
 
     // -----------------------------------------------------------
     // 3. Weapon UI (Right Side)
@@ -394,13 +444,16 @@ void Game_UI_Draw()
     // -----------------------------------------------------------
     // 5. Aim
     // -----------------------------------------------------------
-    if (Game_UI_Aiming_Now())
-    {
-        Sprite_Draw(UI_Zoom_Aim, Aim_X, Aim_Y, Aim_Size, Aim_Size, Aim_Radian, Alpha_T_Quarter);
-    }
     else
     {
-        Sprite_Draw(UI_Normal_Aim, Aim_X, Aim_Y, Aim_Size, Aim_Size, Aim_Radian, Alpha_T_Quarter);
+        if (Game_UI_Aiming_Now())
+        {
+            Sprite_Draw(UI_Zoom_Aim, Aim_X, Aim_Y, Aim_Size, Aim_Size, Aim_Radian, Alpha_T_Quarter);
+        }
+        else
+        {
+            Sprite_Draw(UI_Normal_Aim, Aim_X, Aim_Y, Aim_Size, Aim_Size, Aim_Radian, Alpha_T_Quarter);
+        }
     }
 
     // -----------------------------------------------------------
@@ -459,7 +512,8 @@ void Game_UI_Texture()
     UI_Num[7] = Texture_Manager::GetInstance()->GetID("UI_Num_7");
     UI_Num[8] = Texture_Manager::GetInstance()->GetID("UI_Num_8");
     UI_Num[9] = Texture_Manager::GetInstance()->GetID("UI_Num_9");
-    UI_Num_Slash = Texture_Manager::GetInstance()->GetID("UI_Num_Slash");
+    UI_Num_Slash  = Texture_Manager::GetInstance()->GetID("UI_Num_Slash");
+    UI_Percentage = Texture_Manager::GetInstance()->GetID("UI_Percentage");
 }
 
 void Game_UI_Trigger_Damage()
@@ -496,6 +550,10 @@ void Draw_Number_String(const std::string& str, float startX, float startY, floa
         {
             Sprite_Draw(UI_Num_Slash, Current_X, startY, width, height);
         }
+		else if (Num == '%')
+		{
+			Sprite_Draw(UI_Percentage, Current_X, startY, width, height);
+		}
 
         Current_X += width * 0.8f;
     }

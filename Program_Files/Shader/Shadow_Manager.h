@@ -12,8 +12,13 @@
 #include <DirectXMath.h>
 #include <wrl/client.h>
 
-constexpr int Shadow_Map_W = 2048;
-constexpr int Shadow_Map_H = 2048;
+constexpr int Shadow_Map_W = 4096;
+constexpr int Shadow_Map_H = 4096;
+
+extern float PCF_Spread;
+extern int   PCF_Loop;
+constexpr float Spread = 1.5f;
+constexpr int   Loop   = 2; // 1 = 3x3, 2 = 5x5, 3 = 7x7...
 
 class Shadow_Manager
 {
@@ -29,10 +34,12 @@ public:
     ID3D11ShaderResourceView* GetShadowMapSRV() const { return m_ShadowMapSRV.Get(); }
 
     // Get Light View-Matrix
-    //    lightDir : Light Direction (Get Info To Light_Manager)
+    //    lightDir  : Light Direction (Get Info To Light_Manager)
     //    centerPos : Center Pos For Shadow Map (Always >> Player / Sometime >> Enemy, Cube...etc)
     DirectX::XMMATRIX GetLightViewProjMatrix(const DirectX::XMFLOAT4& lightDir, const DirectX::XMFLOAT3& centerPos);
 
+    void Reset_PCF();
+    
 private:
     int m_Width = 0;
     int m_Height = 0;

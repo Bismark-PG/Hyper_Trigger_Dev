@@ -114,14 +114,13 @@ void In_Game_Menu_Update(double elapsed_time)
         if (Fade_GetState() == FADE_STATE::FINISHED_OUT)
         {
             Mixer_Init();
-            Game_Info_Reset();
-            In_Game_Menu_Reset();
-            Mouse_SetMode(MOUSE_POSITION_MODE_ABSOLUTE);
 
+            Mouse_SetMode(MOUSE_POSITION_MODE_ABSOLUTE);
             Game_Manager::GetInstance()->Update_Main_Screen(Main_Screen::MENU_SELECT);
             Game_Manager::GetInstance()->Update_Game_Select_Screen(Game_Select_Screen::G_WAIT);
 
-            Fade_Start(1.5f, false);
+            Game_Info_Reset();
+            In_Game_Menu_Reset();
         }
         return;
     }

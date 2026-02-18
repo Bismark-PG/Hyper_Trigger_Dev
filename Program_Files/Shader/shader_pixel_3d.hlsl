@@ -47,6 +47,13 @@ cbuffer PS_CONSTANT_BUFFER : register(b4)
     float3 point_light_dummy; //float4つ分ずつ送るためのdummy
 };
 
+cbuffer PS_SHADOW_PROP : register(b5)
+{
+    float PCF_Spread;       // PCF Spread (0.0f ~ 1.0f) : 0.0f = Sharp Shadow, 1.0f = Soft Shadow
+    int PCF_Loop;           // PCF Loop Count (1 ~ 5) : 1 = Sharp Shadow, 5 = Soft Shadow
+    float2 Padding_Shadow;  // Set 16Byte Alignment
+};
+
 struct PS_IN
 {
     float4 posH : SV_POSITION;
@@ -60,7 +67,7 @@ struct PS_IN
 Texture2D tex;     //テクスチャ
 SamplerState samp; //テクスチャサンプラ
 
-Texture2D shadowMap : register(t2);         // Shadow Map Texture
+Texture2D shadowMap : register(t4);         // Shadow Map Texture
 SamplerState shadowSampler : register(s1);  // Shadow Sampler
 
 //=============================================================================
@@ -68,7 +75,7 @@ SamplerState shadowSampler : register(s1);  // Shadow Sampler
 //=============================================================================
 float CalcShadowFactor(float4 posLight)
 {
-    // 1. Homogeneous Divide
+    // 1. Perspective Divide
     float3 projCoords = posLight.xyz / posLight.w;
 
     // 2. NDC (-1 ~ 1) -> Texture POS (0 ~ 1)
@@ -79,23 +86,53 @@ float CalcShadowFactor(float4 posLight)
     
     // 3. Range Check (Out Of Screen, Do Not Get Light
     if (projCoords.z > 1.0f ||
-        projCoords.x < 0.0f || projCoords.x > 1.0f || 
+        projCoords.x < 0.0f || projCoords.x > 1.0f ||
         projCoords.y < 0.0f || projCoords.y > 1.0f)
     {
         return 1.0f; // Get Light
     }
-    
-    // 4. Sampling Shadow Map (Use R Channel Have Depth)
-    float closestDepth = shadowMap.Sample(shadowSampler, projCoords.xy).r;
+
+    // 4. Percentage Closer Filtering
+    float shadowSum = 0.0f;
     float currentDepth = projCoords.z;
     
-    // 5. Bias Sahdow For Delete Shadow Acne
-    float bias = 0.001f;
+    // 5. Bias Shadow For Delete Shadow Acne
+    float bias = 0.002f; // 0.002f ~ 0.005f
     
-    // 6. If Current Depth Is Deeper, Will Be Shadow Area.
-    float shadow = (currentDepth - bias) > closestDepth ? 0.0f : 1.0f;
+    // Texel Size: Inverse Of Shadow Map Resolution (Based On Shadow_Manager.h)
+    // 1.0f / 4096.0f : Sharp Shadow
+    // 2.0f / 4096.0f : Soft Shadow 
     
-    return shadow;
+    // float2 texelSize = PCF_Spread / 4096.0f;
+    float2 texelSize = 1.0f / 4096.0f;
+    // int loopRange = PCF_Loop;
+    int loopRange = 2;
+    
+    float sampleCount = 0.0f;
+    
+    // [unroll] : Unroll Loop For Performance Optimization
+    // [Loop]   : Allow Dynamic Loop Count
+    // [loop] for (int x = -PCF_Loop; x <= PCF_Loop; ++x)
+    [unroll]
+    for (int x = -loopRange; x <= loopRange; ++x)
+    {
+        // [loop] for (int y = -PCF_Loop; y <= PCF_Loop; ++y)
+        [unroll]
+        for (int y = -loopRange; y <= loopRange; ++y)
+        {
+            float pcfDepth = shadowMap.SampleLevel(shadowSampler, projCoords.xy + float2(x, y) * texelSize, 0).r;
+            
+            // Depth Comparison :
+            // If Current Depth Is Greater Than Recorded Depth, Not Shadow (1.0)
+            // If Current Depth Is Greater Than shadowMap, Shadow (0.0)
+            shadowSum += (currentDepth - bias < pcfDepth) ? 1.0f : 0.0f;
+            //sampleCount += 1.0f;
+            sampleCount += 1.0f;
+        }
+    }
+    
+    // Return Average Of Samples For Soft Shadow (0.0 ~ 1.0)
+    return shadowSum / sampleCount;
 }
 
 //=============================================================================

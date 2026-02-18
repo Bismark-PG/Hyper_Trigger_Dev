@@ -39,6 +39,7 @@
 #include "Fade.h"
 #include "Weapon_System.h"
 #include "Upgrade_System.h"
+#include "Damage_Text_Manager.h"
 using namespace DirectX;
 using namespace PALETTE;
 
@@ -51,6 +52,17 @@ static int Last_Processed_Loop = -1;
 static bool Is_Game_Clear_Sequence = false;
 static bool Is_Music_Synced = false;
 static bool Is_Reset_Mode = false;
+static bool Is_Game_Over_Processing = false;
+static bool Is_Game_Done = false;
+
+// ----------------------------------------------------------
+//				   static Game Update Logic
+// ----------------------------------------------------------
+void Game_Debug_Mode_Check();
+void Game_Done_Check(float dt);
+void Game_Mixing_Check();
+void Game_Input_Check();
+void Game_Main_Update(double elapsed_time);
 
 void Game_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 {
@@ -67,6 +79,7 @@ void Game_Initialize(ID3D11Device* pDevice, ID3D11DeviceContext* pContext)
 	Enemy_Spawner::GetInstance().Init();
 
 	Particle_Manager::GetInstance().Init();
+	Damage_Text_Manager::GetInstance().Init();
 	Resource_Manager::GetInstance().Init();
 	Upgrade_System::GetInstance().Init();
 
@@ -79,6 +92,7 @@ void Game_Finalize()
 	
 	Upgrade_System::GetInstance().Final();
 	Resource_Manager::GetInstance().Final();
+	Damage_Text_Manager::GetInstance().Final();
 	Particle_Manager::GetInstance().Final();
 
 	Enemy_Manager::GetInstance().Final();
@@ -97,29 +111,8 @@ void Game_Update(double elapsed_time)
 {
 	float dt = static_cast<float>(elapsed_time);
 
-	if (KeyLogger_IsTrigger(KK_F1))
-	{
-		Is_Debug_Mode = !Is_Debug_Mode;
-
-		Debug_Mode_Switcher();
-		Debug_Mode_Set();
-
-		if (Is_Debug_Mode)
-		{
-			Debug_Camera_Set_Position(Player_Camera_Get_Current_POS());
-			Debug_Camera_Set_Rotation(Player_Camera_Get_Yaw(), Player_Camera_Get_Pitch());
-		}
-		else 
-		{
-		    Mouse_SetMode(MOUSE_POSITION_MODE_RELATIVE);
-		}
-	}
-
-	if (Upgrade_System::GetInstance().Is_Active())
-	{
-		Upgrade_System::GetInstance().Update();
-		return;
-	}
+	// Debug Mode Check
+	Game_Debug_Mode_Check();
 
 	if (Get_Debug_Mode_State())
 	{
@@ -129,85 +122,29 @@ void Game_Update(double elapsed_time)
 		return;
 	}
 
-	if (Is_Game_Clear_Sequence)
+	if (Upgrade_System::GetInstance().Is_Active())
 	{
-		float Current_Vol = Audio_Manager::GetInstance()->Get_Target_BGM_Volume();
-
-		float Fade_Out_Speed = 1.0f / 3.0f;
-
-		if (Current_Vol > 0.0f)
-		{
-			Current_Vol -= Fade_Out_Speed * dt;
-			if (Current_Vol < 0.0f) Current_Vol = 0.0f;
-
-			Audio_Manager::GetInstance()->Set_Target_BGM_Volume(Current_Vol);
-		}
-
-		if (Fade_GetState() == FADE_STATE::FINISHED_OUT)
-		{
-			Mixer_Init();
-
-			Mouse_SetMode(MOUSE_POSITION_MODE_ABSOLUTE);
-
-			Game_Manager::GetInstance()->Update_Main_Screen(Main_Screen::MENU_SELECT);
-			Game_Manager::GetInstance()->Update_Game_Select_Screen(Game_Select_Screen::G_WAIT);
-
-			Fade_Start(1.5f, false);
-		}
+		Upgrade_System::GetInstance().Update();
 		return;
 	}
 
+	// Game Over / Clear Sequence Check
+	Game_Done_Check(dt);
+	if (Is_Game_Done)
+	{
+		Is_Game_Done = false;
+		return;
+	}
+
+	// DJ Mixer System Check
 	Mixer_First_Game_Start(elapsed_time);
+	Game_Mixing_Check();
 
-	if (!Is_Music_Synced)
-	{
-		if (Audio_Manager::GetInstance()->Get_Target_BGM_Volume() > 0.01f)
-		{
-			Is_Music_Synced = true;
-			Weapon_System::GetInstance().SyncBGM();
-			Debug::D_Out << "[DJ System] Sync Started via Volume/Loop Check" << std::endl;
-		}
-	}
+	// In Game Menu Check
+	Game_Input_Check();
 
-	if (Is_Music_Synced)
-	{
-		int Current_Loop = Audio_Manager::GetInstance()->Get_Current_Loop_Count();
-
-		if (Current_Loop > Last_Processed_Loop)
-		{
-			Weapon_System::GetInstance().SyncBGM();
-
-			Debug::D_Out << "[DJ System] Loop " << Current_Loop << " : Weapons Synced" << std::endl;
-
-			Last_Processed_Loop = Current_Loop;
-		}
-	}
-
-	if (KeyLogger_IsTrigger(KK_ESCAPE) || KeyLogger_IsTrigger(KK_BACK) || XKeyLogger_IsPadTrigger(XINPUT_GAMEPAD_START))
-	{
-		// Audio_Manager::GetInstance()->Pause_BGM(true);
-		Audio_Manager::GetInstance()->Play_SFX("Buffer_Denied");
-		In_Game_Menu_Reset();
-		Game_Manager::GetInstance()->Update_Game_Select_Screen(Game_Select_Screen::GAME_IN_GAME_MENU);
-		return;
-	}
-
-	Map_System_Update(elapsed_time);
-	Player_Update(elapsed_time);
-	Bullet_Manager::Instance().Update(elapsed_time);
-	Player_Camera_Update(elapsed_time);
-
-	Sky_Update();
-	Enemy_Manager::GetInstance().Update(elapsed_time);
-
-	if (Is_Music_Synced)
-	{
-		Enemy_Spawner::GetInstance().Update(elapsed_time);
-	}
-
-	Particle_Manager::GetInstance().Update(elapsed_time);
-	Resource_Manager::GetInstance().Update(elapsed_time);
-	Game_UI_Update(elapsed_time);
+	// Main Game Update
+	Game_Main_Update(elapsed_time);
 }
 
 void Game_Draw()
@@ -222,6 +159,9 @@ void Game_Draw()
 
 	// Get Light View-Projection For Player Shadow
 	XMMATRIX lightVP = Shader_Manager::GetInstance()->GetShadowManager()->GetLightViewProjMatrix(Light_Dir, Player_POS);
+
+	// Unbind Shadow Pass
+	Shader_Manager::GetInstance()->UnbindShadowMapTexture();
 
 	// Draw Shadow Animation OBJ
 	Shader_Manager::GetInstance()->BeginShadow_Skinning();
@@ -243,15 +183,16 @@ void Game_Draw()
 	Direct3D_SetDepthEnable(true);
 	Shader_Manager::GetInstance()->Begin3D();
 
-	// Set Shader Map In Pixel Shader
+	// --- Set Shader Map And Light Matrix ---
+	Shader_Manager::GetInstance()->SetLightViewProjMatrix(lightVP);
 	ID3D11ShaderResourceView* shadowSRV = Shader_Manager::GetInstance()->GetShadowManager()->GetShadowMapSRV();
 	Shader_Manager::GetInstance()->SetShadowMapTexture(shadowSRV);
 
-	// --- Draw Sky Model ---
-	Sky_Draw();
-
 	// --- Set Global Light ---
 	Light_Manager::GetInstance().Global_Light_Set_Up();
+
+	// --- Draw Sky Model ---
+	Sky_Draw();
 
 	// --- Draw 3D Object ---
 	Map_System_Draw();
@@ -262,6 +203,7 @@ void Game_Draw()
 	// --- Draw 2D Object, UI ---
 	Shader_Manager::GetInstance()->SetAlphaBlend(true);
 	Billboard_Manager::Instance().Draw();
+	Damage_Text_Manager::GetInstance().Draw();
 	Resource_Manager::GetInstance().Draw();
 
 	// Draw UI When Not Debug Mod
@@ -302,9 +244,11 @@ void Game_Info_Reset()
 	Resource_Manager::GetInstance().Reset();
 	Upgrade_System::GetInstance().Reset();
 	Billboard_Manager::Instance().Reset();
+	Damage_Text_Manager::GetInstance().Reset();
 
 	// 3. DJ List Reset
 	Weapon_System::GetInstance().Init();
+	Weapon_System::GetInstance().SyncBGM_Game_Reset();
 
 	// 4. Reset Game Time
 	Game_Play_Time = 0.0f;
@@ -312,6 +256,7 @@ void Game_Info_Reset()
 	Audio_Manager::GetInstance()->Reset_Loop_Count();
 
 	Is_Game_Clear_Sequence = false;
+	Is_Game_Over_Processing = false;
 	Is_Music_Synced = false;
 
 	// 5. Fade
@@ -325,4 +270,129 @@ void Game_Info_Reset()
 bool Game_Check_Is_Resetting()
 {
 	return Is_Reset_Mode;
+}
+
+// ----------------------------------------------------------------------------------------------------------------
+//												Game Update Logic
+// ----------------------------------------------------------------------------------------------------------------
+
+void Game_Debug_Mode_Check()
+{
+	if (KeyLogger_IsTrigger(KK_F1))
+	{
+		Is_Debug_Mode = !Is_Debug_Mode;
+
+		Debug_Mode_Switcher();
+		Debug_Mode_Set();
+
+		if (Is_Debug_Mode)
+		{
+			Debug_Camera_Set_Position(Player_Camera_Get_Current_POS());
+			Debug_Camera_Set_Rotation(Player_Camera_Get_Yaw(), Player_Camera_Get_Pitch());
+		}
+		else
+		{
+			Mouse_SetMode(MOUSE_POSITION_MODE_RELATIVE);
+		}
+	}
+}
+
+void Game_Done_Check(float dt)
+{
+	if (Player_Check_Is_Dead() && !Is_Game_Over_Processing)
+	{
+		Is_Game_Over_Processing = true;
+		// Fade Out (Red) Start
+		Fade_Start(2.0f, true, { 1.0f, 0.0f, 0.0f, 1.0f });
+	}
+
+	if (Is_Game_Clear_Sequence || Is_Game_Over_Processing)
+	{
+		float Current_Vol = Audio_Manager::GetInstance()->Get_Target_BGM_Volume();
+
+		float Fade_Out_Speed = 1.0f / 3.0f;
+
+		if (Current_Vol > 0.0f)
+		{
+			Current_Vol -= Fade_Out_Speed * dt;
+			if (Current_Vol < 0.0f) Current_Vol = 0.0f;
+
+			Audio_Manager::GetInstance()->Set_Target_BGM_Volume(Current_Vol);
+		}
+
+		if (Fade_GetState() == FADE_STATE::FINISHED_OUT)
+		{
+			Mixer_Init();
+
+			Mouse_SetMode(MOUSE_POSITION_MODE_ABSOLUTE);
+			Game_Manager::GetInstance()->Update_Main_Screen(Main_Screen::MENU_SELECT);
+			Game_Manager::GetInstance()->Update_Game_Select_Screen(Game_Select_Screen::G_WAIT);
+
+			Is_Game_Done = true;
+			Game_Info_Reset();
+		}
+		return;
+	}
+}
+
+void Game_Mixing_Check()
+{
+	if (!Is_Music_Synced)
+	{
+		if (Audio_Manager::GetInstance()->Get_Target_BGM_Volume() > 0.01f)
+		{
+			Is_Music_Synced = true;
+			Weapon_System::GetInstance().SyncBGM();
+			Debug::D_Out << "[DJ System] Sync Started via Volume/Loop Check" << std::endl;
+		}
+	}
+
+	if (Is_Music_Synced)
+	{
+		int Current_Loop = Audio_Manager::GetInstance()->Get_Current_Loop_Count();
+
+		if (Current_Loop > Last_Processed_Loop)
+		{
+			Weapon_System::GetInstance().SyncBGM();
+
+			Debug::D_Out << "[DJ System] Loop " << Current_Loop << " : Weapons Synced" << std::endl;
+
+			Last_Processed_Loop = Current_Loop;
+		}
+	}
+}
+
+void Game_Input_Check()
+{
+	if (KeyLogger_IsTrigger(KK_ESCAPE) || KeyLogger_IsTrigger(KK_BACK) || XKeyLogger_IsPadTrigger(XINPUT_GAMEPAD_START))
+	{
+		// Audio_Manager::GetInstance()->Pause_BGM(true);
+		Audio_Manager::GetInstance()->Play_SFX("Buffer_Denied");
+		In_Game_Menu_Reset();
+		Game_Manager::GetInstance()->Update_Game_Select_Screen(Game_Select_Screen::GAME_IN_GAME_MENU);
+
+		Is_Game_Done = true;
+		return;
+	}
+}
+
+void Game_Main_Update(double elapsed_time)
+{
+	Map_System_Update(elapsed_time);
+	Player_Update(elapsed_time);
+	Bullet_Manager::Instance().Update(elapsed_time);
+	Player_Camera_Update(elapsed_time);
+
+	Sky_Update();
+	Enemy_Manager::GetInstance().Update(elapsed_time);
+
+	if (Is_Music_Synced)
+	{
+		Enemy_Spawner::GetInstance().Update(elapsed_time);
+	}
+
+	Particle_Manager::GetInstance().Update(elapsed_time);
+	Damage_Text_Manager::GetInstance().Update(elapsed_time);
+	Resource_Manager::GetInstance().Update(elapsed_time);
+	Game_UI_Update(elapsed_time);
 }

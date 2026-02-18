@@ -52,43 +52,46 @@ void Enemy_Spawner::Update(double dt)
                 // Spawn For Count
                 for (int count = 0; count < wave.BatchCount; ++count)
                 {
-                    Enemy_Manager::GetInstance().Spawn(wave.Type);
+                    Enemy_Manager::GetInstance().Spawn(wave.Type, Get_Safe_Spawn_Position());
                 }
             }
         }
     }
 }
 
-// Legacy System For Get Random Spawn POS, Not Use Now 
-/*
-DirectX::XMFLOAT3 Enemy_Spawner::Get_Random_Spawn_Position()
+XMFLOAT3 Enemy_Spawner::Get_Safe_Spawn_Position()
 {
-    // Get Player POS
+    // 1. Player POS
     XMFLOAT3 playerPos = Player_Get_POS();
 
-    // 1. Random Radian
-    float angle = RandomFloat(0.0f, XM_2PI);
+    // 2. Random Logic (Range : 25 ~ 250)
+    float Angle = RandomFloat(0.0f, XM_2PI);       // 0 ~ 360 Deree
+    float Distance = RandomFloat(25.0f, 200.0f);   // Min 25, Max 200
 
-    // 2. Random Distance
-    float distance = RandomFloat(20.0f, 30.0f);
+    // 3. Calculate Tentative Position
+    float Spawn_X = playerPos.x + cosf(Angle) * Distance;
+    float Spawn_Z = playerPos.z + sinf(Angle) * Distance;
 
-    // 3. Get POS
-    float spawnX = playerPos.x + cosf(angle) * distance;
-    float spawnZ = playerPos.z + sinf(angle) * distance;
-
-    // 4. Restore Y Axis
-    float spawnY = Mash_Field_Get_Height(spawnX, spawnZ);
-
-    // If Out Of Map?
-    if (spawnY < -500.0f)
+	// 4. Boundary Check & Warp Logic (Overload Reset)
+    // [X Axis Check]
+    if (Spawn_X > Mash_Field_Get_Size_X())
     {
-        spawnY = playerPos.y + 10.0f; // Air Drop
+        Spawn_X = -(Spawn_X - Mash_Field_Get_Size_X());
     }
-    else
+    else if (Spawn_X < -Mash_Field_Get_Size_X())
     {
-        spawnY += 1.0f; // Upside Of Ground
+        Spawn_X = -(Spawn_X + Mash_Field_Get_Size_X());
     }
 
-    return XMFLOAT3(spawnX, spawnY, spawnZ);
+    // [Z Axis Check]
+    if (Spawn_Z > Mash_Field_Get_Size_Z())
+    {
+        Spawn_Z = -(Spawn_Z - Mash_Field_Get_Size_Z());
+    }
+    else if (Spawn_Z < -Mash_Field_Get_Size_Z())
+    {
+        Spawn_Z = -(Spawn_Z + Mash_Field_Get_Size_Z());
+    }
+
+    return XMFLOAT3(Spawn_X, 0.0f, Spawn_Z);
 }
-*/

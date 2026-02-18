@@ -22,6 +22,7 @@
 #include "Upgrade_System.h"  
 #include "Weapon_System.h"   
 #include "Random_Heapler_Logic.h"
+#include "Damage_Text_Manager.h"
 using namespace DirectX;
 
 // Enemy Class Implementation
@@ -160,6 +161,8 @@ void Enemy::Draw_Shadow(const DirectX::XMMATRIX& LightViewProj)
 
 void Enemy::OnDamage(int damage)
 {
+	if (m_HP <= 0 || !m_IsActive) return;
+
 	if (!m_IsActive)
 	{
 		return;
@@ -172,6 +175,15 @@ void Enemy::OnDamage(int damage)
 	}
 
 	m_HP -= FinalDamage;
+
+	DirectX::XMFLOAT3 spawnPos = Position;
+	spawnPos.y += m_Info.Scale * 0.8f; // Position Above Enemy Scale * 0.8f
+
+	// Make Damage Text
+	Damage_Text_Manager::GetInstance().Spawn_Damage(spawnPos, damage,
+		{ 1.0f, 0.2f, 0.2f, 1.0f }, // Red
+		1.5f                        // Scale
+	);
 
 	if (m_HP <= 0)
 

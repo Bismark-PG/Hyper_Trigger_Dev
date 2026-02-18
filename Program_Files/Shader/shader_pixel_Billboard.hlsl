@@ -12,15 +12,19 @@ struct PS_IN
     float2 texcoord : TEXCOORD0;
 };
 
-Texture2D tex;
-SamplerState samp;
+Texture2D tex : register(t0);
+SamplerState samp : register(s0);
 
 float4 main(PS_IN pi) : SV_TARGET
 {
-    //    a(RGBA) * b(RGBA)
-    // >> a.R * b.R
-    //    a.G * b.G
-    //    a.B * b.B
-    //    a.A * b.A
-    return tex.Sample(samp, pi.texcoord) * pi.color;
+    // Get Texture Color
+    float4 finalColor = tex.Sample(samp, pi.texcoord);
+
+    // Alpha Test (Discard Pixel If Alpha Is Less Than 0.1f)
+    clip(finalColor.a - 0.1f);
+
+    // Vertex Color Modulate
+    finalColor *= pi.color;
+
+    return finalColor;
 }

@@ -112,10 +112,22 @@ extern float g_R_Toe_X, g_R_Toe_Y, g_R_Toe_Z;
 // ---------------------//
 //  Animation Constants //
 // ---------------------//
-constexpr int MAX_BONES = 100;
+constexpr int MAX_BONES = 256;
 extern bool Is_Bone_AABB_Draw;
 constexpr float Bone_AABB_Defalut = 0.05f;
 extern float Bone_AABB;
+
+//3D頂点構造体
+struct Vertex3D
+{
+    DirectX::XMFLOAT3 position = {}; // 頂点座標
+    DirectX::XMFLOAT3 normal = {}; //法線
+    DirectX::XMFLOAT4 color = {}; // 色
+    DirectX::XMFLOAT2 texcoord = {}; // UV
+
+    unsigned int BoneIndex[4] = { 0,0,0,0 };
+    float BoneWeight[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+};
 
 struct BoneInfo
 {
@@ -164,6 +176,9 @@ void Model_Add_Animation(MODEL* model, const std::string& animName, const char* 
 
 // Logic For Change Animation
 void Model_Play_Animation(MODEL* model, const std::string& animName, bool loop = true);
+
+// Logic For Get Bone Transforms For Shader
+void Model_Get_BoneTransforms(MODEL* model, std::vector<DirectX::XMFLOAT4X4>& outTransforms);
 
 // Logic For Reset Model Node Transform
 void Model_Node_Reset();

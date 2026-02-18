@@ -33,21 +33,28 @@ constexpr float Change_Lerp_Speed = 15.0f;
 // Normal State (Base)
 static const float Dist_Normal = 3.5f;
 static const float FOV_Normal = XMConvertToRadians(70.0f);
+static const float Height_Normal = 2.5f;
+static const float Offset_Width_Normal = 1.5f;
 
 // Aim State (ADS)
-static const float Dist_Aim = 1.5f;  // Close Up
-static const float FOV_Aim = XMConvertToRadians(45.0f); // Zoom In
+static const float Dist_Aim = 2.0f;  // Close Up
+static const float FOV_Aim = XMConvertToRadians(60.0f); // Zoom In
 static const float Sens_Mult_Aim = 0.5f; // 50% Sensitivity
+static const float Height_Aim = 1.8f;
+static const float Offset_Width_Aim = 1.0f;
 
 // Current Values
 static float Camera_Distance = Dist_Normal;
 static float Camera_FOV = FOV_Normal;
-static float Camera_Height = 2.5f;
+static float Camera_Height = Height_Normal;
 
-// Target Values
+// Target Values For Lerp
 static float Target_Dist = Dist_Normal;
 static float Target_FOV = FOV_Normal;
 static float Target_Sens_Mult = 1.0f; // Multiplier for Sensitivity
+static float Target_Height = Height_Normal;
+static float Target_Offset = 0.0f;
+static bool Is_Aiming_Mode = false;
 
 // Sensitivity
 static float Mouse_Sensitivity = 0.01f; // Base Setting (From Option)
@@ -95,6 +102,10 @@ void Player_Camera_Initialize()
     Target_Dist = Dist_Normal;
     Target_FOV = FOV_Normal;
     Target_Sens_Mult = 1.0f;
+    Target_Offset = (Current_Sights == Player_Sights::Left) ? -Offset_Width_Normal : Offset_Width_Normal;
+    Camera_Sights_Offset = Target_Offset;
+
+    Is_Aiming_Mode = false;
 }
 
 void Player_Camera_Finalize()
@@ -106,13 +117,18 @@ void Player_Camera_Reset()
     Camera_Yaw = 0.0f;
     Camera_Pitch = 0.0f;
 
+    Apply_Sensitivity = Mouse_Sensitivity;
+
     Target_Dist = Dist_Normal;
     Target_FOV = FOV_Normal;
     Target_Sens_Mult = 1.0f;
+    Target_Height = Height_Normal;
+    Target_Offset = (Current_Sights == Player_Sights::Left) ? -Offset_Width_Normal : Offset_Width_Normal;
 
     Camera_Distance = Dist_Normal;
     Camera_FOV = FOV_Normal;
-    Apply_Sensitivity = Mouse_Sensitivity;
+    Camera_Height = Height_Normal;
+    Camera_Sights_Offset = Target_Offset;
 }
 
 void Player_Camera_Update(double elapsed_time)
@@ -168,6 +184,12 @@ void Player_Camera_Update(double elapsed_time)
 
     // FOV Lerp
     Camera_FOV += (Target_FOV - Camera_FOV) * Lerp_Speed;
+
+    // Height Lerp
+    Camera_Height += (Target_Height - Camera_Height) * Lerp_Speed;
+
+	// Sights Offset Lerp
+    Camera_Sights_Offset += (Target_Offset - Camera_Sights_Offset) * Lerp_Speed;
 
     // Sensitivity Lerp
     // Calculate Target Real Sensitivity (Base Setting * Multiplier)
@@ -303,35 +325,51 @@ void Player_Camera_Set_Sights(Player_Sights sight)
 {
     Current_Sights = sight;
 
+    float width = Is_Aiming_Mode ? Offset_Width_Aim : Offset_Width_Normal;
+
     switch (Current_Sights)
     {
     case Player_Sights::Left:
-        Camera_Sights_Offset = -1.5f;
+        Target_Offset = -width;
         break;
     case Player_Sights::Middle:
-        Camera_Sights_Offset = 0.0f;
+        Target_Offset = 0.0f;
         break;
     case Player_Sights::Right:
-        Camera_Sights_Offset = 1.5f;
+        Target_Offset = width;
         break;
     }
 }
 
 void Player_Camera_Set_Aiming_Mode(bool Is_Aiming)
 {
+    Is_Aiming_Mode = Is_Aiming;
+
+    float dir = 0.0f;
+    if (Current_Sights == Player_Sights::Right) 
+    {
+        dir = 1.0f;
+    }
+    else if (Current_Sights == Player_Sights::Left) 
+    {
+        dir = -1.0f;
+    }
+
     if (Is_Aiming)
     {
         Target_Dist = Dist_Aim;
         Target_FOV = FOV_Aim;
         Target_Sens_Mult = Sens_Mult_Aim;
-
-        // Player_Camera_Set_Sights(Player_Sights::Right); // View Lock
+        Target_Height = Height_Aim;
+        Target_Offset = dir * Offset_Width_Aim;
     }
     else
     {
         Target_Dist = Dist_Normal;
         Target_FOV = FOV_Normal;
         Target_Sens_Mult = 1.0f;
+        Target_Height = Height_Normal;
+        Target_Offset = dir * Offset_Width_Normal;
     }
 }
 

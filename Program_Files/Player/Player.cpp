@@ -77,7 +77,7 @@ constexpr float Bonus_HP_Heal = 0.1f;
 static E_PlayerState Current_State = E_PlayerState::IDLE;
 
 // ----------------------------------------------------------
-// static Player Update Logic
+//				static Player Update Logic
 // ----------------------------------------------------------
 // --- Movement And Physics System ---
 static void Player_Update_Teleport_System();
@@ -142,25 +142,12 @@ void Player_Update(double elapsed_time)
 	// ---------------------------------------------
 	//	 --- 1. Game Over And Invincible Logic ---
 	// ---------------------------------------------
-	if (Is_Game_Over_Sequence)
-	{
-		if (Fade_GetState() == FADE_STATE::FINISHED_OUT)
-		{
-			Mixer_Init();
-			Game_Manager::GetInstance()->Update_Main_Screen(Main_Screen::MENU_SELECT);
-			Game_Manager::GetInstance()->Update_Game_Select_Screen(Game_Select_Screen::G_WAIT);
-
-			Mouse_SetMode(MOUSE_POSITION_MODE_ABSOLUTE);
-			Fade_Start(1.5f, false);
-		}
-		return;
-	}
-
-	if (Player_Is_Dead) return;
+	if (Player_Is_Dead || Is_Game_Over_Sequence) return;
 
 	if (Is_Invincible)
 	{
 		Invincible_Timer -= dt;
+
 		if (Invincible_Timer <= 0.0f)
 		{
 			Is_Invincible = false;
@@ -260,8 +247,7 @@ void Player_Model_Animation_Update(float Time)
 
 void Player_Draw()
 {
-	if (!Player_Model)
-		return;
+	if (!Player_Model) return;
 
 	Shader_Manager::GetInstance()->SetLightSpecular(Player_Camera_Get_POS(), 164.0f, { 1.0f, 1.0f, 1.0f, 1.0f });
 
@@ -311,7 +297,7 @@ void Player_Draw_Shadow(const DirectX::XMMATRIX& LightViewProj)
 	Shader_Manager::GetInstance()->SetShadowWorldMatrix(World, LightViewProj);
 
 	// Drow Model Without Texture (Just Draw Shape)
-	Shader_Manager::GetInstance()->DrawModelShadow(Player_Model, World, LightViewProj);
+	Shader_Manager::GetInstance()->DrawModelShadow_Animation(Player_Model, World, LightViewProj);
 }
 
 void Player_Reset()
@@ -387,13 +373,10 @@ void Player_OnDamage(int damage)
 
 	if (Player_HP <= 0)
 	{
-		Player_HP = 0;
 		Player_Is_Dead = true;
 		Is_Shoot = false;
 		Is_Aiming_Mode = false;
-
 		Is_Game_Over_Sequence = true;
-		Fade_Start(2.0f, true, { 1.0f, 0.0f, 0.0f, 1.0f });
 	}
 }
 
@@ -412,6 +395,11 @@ int Player_Get_HP()
 int Player_Get_MaxHP()
 {
 	return Player_MaxHP;
+}
+
+bool Player_Check_Is_Dead()
+{
+	return Is_Game_Over_Sequence;
 }
 
 bool Player_Is_Aiming_Now()

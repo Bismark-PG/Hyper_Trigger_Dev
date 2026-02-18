@@ -6,16 +6,20 @@
 
 ==============================================================================*/
 #include "Shadow_Manager.h"
+#include <cmath>
 
 using namespace DirectX;
+
+float PCF_Spread = Spread;
+int   PCF_Loop = Loop;
 
 Shadow_Manager::Shadow_Manager() {}
 Shadow_Manager::~Shadow_Manager() {}
 
 bool Shadow_Manager::Init(ID3D11Device* device, int width, int height)
 {
-    m_Width = width;
-    m_Height = height;
+    m_Width = width, m_Height = height;
+    PCF_Spread = Spread, PCF_Loop = Loop;
 
     // --- Set Texture For Depth Map ---
     D3D11_TEXTURE2D_DESC texDesc = {};
@@ -102,21 +106,34 @@ XMMATRIX Shadow_Manager::GetLightViewProjMatrix(const XMFLOAT4& lightDir, const 
     XMVECTOR Shadow_Center = XMLoadFloat3(&centerPos);
 
     // Light Pos = Player Pos - (Light Direction * Distance)
-    // Distance Is Moderately Far (e.g. 50.0f)
-    XMVECTOR Light_POS = Shadow_Center - (Light_Dir * 50.0f);
+    // Distance Is Moderately Far (e.g. 50.0f, 100.0f...etc)
+    XMVECTOR Light_POS = Shadow_Center - (Light_Dir * 100.0f);
+
+    // If Light Is vertical, Change Up Vector Z Axis To 1
+    XMVECTOR UpVector = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    if (std::abs(lightDir.y) > 0.99f)
+    {
+        UpVector = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+    }
 
     // --- Get Light View Matrix ---
     // Matrix For Looki Player From Light POS
-    XMMATRIX light_View = XMMatrixLookAtLH(Light_POS, Shadow_Center, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    XMMATRIX light_View = XMMatrixLookAtLH(Light_POS, Shadow_Center, UpVector);
 
     // --- Light Projection Matrix ---
     // Sun Light (Directional Light) Is Use Orthographic For Make Shadows Parallel
     // Range (Width, Height) Is Shadow Range
-    float Scene_W  = 250.0f, Scene_H = 250.0f; // Shadow Range Of Around Player
+    float Scene_W  = 150.0f, Scene_H = 150.0f; // Shadow Range Of Around Player
     float Near_Z = 1.0f;
-    float Far_Z = 100.0f; // How Deep From The Light POS
+    float Far_Z = 500.0f; // How Deep From The Light POS
 
     XMMATRIX lightProj = XMMatrixOrthographicLH(Scene_W, Scene_H, Near_Z, Far_Z);
 
     return light_View * lightProj;
+}
+
+void Shadow_Manager::Reset_PCF()
+{
+    PCF_Spread = Spread;
+    PCF_Loop = Loop;
 }
