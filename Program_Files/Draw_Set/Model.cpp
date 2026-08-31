@@ -576,16 +576,33 @@ AABB Model_Get_AABB(MODEL* model, const DirectX::XMFLOAT3& position)
 
 void Model_Update_Animation(MODEL* model, float deltaTime)
 {
-	if (!model || model->AiScene->mNumAnimations == 0) return;
+	if (!model || !model->CurrentAnim) return;
 
-	// const aiAnimation* anim = model->AiScene->mAnimations[0];
-	const aiAnimation* anim = model->CurrentAnim;
-	float tps = static_cast<float>(anim->mTicksPerSecond != 0 ? anim->mTicksPerSecond : 25.0f);
+	// If Animation Finished And Not Loop, Do Not Update
+	if (model->IsAnimFinished && !model->CurrentAnim_Loop) return;
 
-	model->AnimationTime += deltaTime * tps;
-	float time = static_cast<float>(fmod(model->AnimationTime, anim->mDuration));
+	float TicksPerSecond = static_cast<float>(model->CurrentAnim->mTicksPerSecond !=
+		0 ? model->CurrentAnim->mTicksPerSecond : 25.0f);
+	float TimeInTicks = deltaTime * TicksPerSecond;
 
-	ReadNodeHierarchy(model, time, model->RootNode, XMMatrixIdentity());
+	model->AnimationTime += TimeInTicks;
+
+	float Duration = static_cast<float>(model->CurrentAnim->mDuration);
+
+	if (model->CurrentAnim_Loop)
+	{
+		model->AnimationTime = fmod(model->AnimationTime, Duration);
+	}
+	else
+	{
+		if (model->AnimationTime >= Duration)
+		{
+			model->AnimationTime = Duration - 0.001f;
+			model->IsAnimFinished = true;
+		}
+	}
+
+	ReadNodeHierarchy(model, model->AnimationTime, model->RootNode, XMMatrixIdentity());
 }
 
 void Model_Add_Animation(MODEL* model, const std::string& animName, const char* fileName)
@@ -623,11 +640,18 @@ void Model_Play_Animation(MODEL* model, const std::string& animName, bool loop)
 	if (it != model->Animations.end())
 	{
 		// It Already Played, Reset Or Do Notihing (In Now, Just Change)
-		if (model->CurrentAnim != it->second)
+		if (model->CurrentAnim == it->second)
 		{
-			model->CurrentAnim = it->second;
-			model->AnimationTime = 0.0f; // Time Reset
+			model->CurrentAnim_Loop = loop; // Only Update Loop Flag
+			return;
 		}
+
+		model->CurrentAnim = it->second;
+		model->AnimationTime = 0.0f;     // Is New Animation, Reset Time
+		model->CurrentAnim_Loop = loop;  // Set Loop
+		model->IsAnimFinished = false;   // Reset Finish Flag
+
+		Debug::D_Out << "Play Animation : " << animName << std::endl;
 	}
 }
 

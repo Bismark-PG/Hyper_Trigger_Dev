@@ -158,6 +158,10 @@ struct MODEL
     std::vector<const aiScene*> AnimScenes;
     std::unordered_map<std::string, aiAnimation*> Animations;
     aiAnimation* CurrentAnim = nullptr;
+
+	// ==== Animation Control Data =====
+    bool CurrentAnim_Loop = true;
+    bool IsAnimFinished = false;
 };
 
 MODEL* ModelLoad(const char* FileName, bool bBlender = false);

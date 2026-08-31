@@ -231,30 +231,34 @@ void Game_UI_Update(double elapsed_time)
 
     if (Reloading || Switching)
     {
-        float Ratio = 0.0f;
+        float Spin_Speed = DirectX::XM_2PI * 10.0f;
 
-        if (Reloading)
-        {
-            // 0.0(Start) ~ 1.0(End)
-            Ratio = Weapon_System::GetInstance().Get_Reload_State();
-        }
-        else
-        {
-            // 0.0(Start) ~ 1.0(End)
-            Ratio = Weapon_System::GetInstance().Get_Switching_State();
-        }
+        Reload_Rotation -= Spin_Speed * dt;
 
-        // Safety Clamp
-        if (Ratio > 1.0f) Ratio = 1.0f;
+   //     float Ratio = 0.0f;
 
-        if (Ratio > 0.0f)
-        {
-			// Ease In-Out Cubic (0.0 ~ 1.0)
-            float Accelerated_Ratio = Ratio * Ratio;
+   //     if (Reloading)
+   //     {
+   //         // 0.0(Start) ~ 1.0(End)
+   //         Ratio = Weapon_System::GetInstance().Get_Reload_State();
+   //     }
+   //     else
+   //     {
+   //         // 0.0(Start) ~ 1.0(End)
+   //         Ratio = Weapon_System::GetInstance().Get_Switching_State();
+   //     }
 
-			// Angle = Ratio * Reload_Base_Speed(4 Full Rotation Per Second)
-            Reload_Rotation = Accelerated_Ratio * Reload_Base_Speed;
-        }
+   //     // Safety Clamp
+   //     if (Ratio > 1.0f) Ratio = 1.0f;
+
+   //     if (Ratio > 0.0f)
+   //     {
+			//// Ease In-Out Cubic (0.0 ~ 1.0)
+   //         float Accelerated_Ratio = Ratio * Ratio;
+
+			//// Angle = Ratio * Reload_Base_Speed(4 Full Rotation Per Second)
+   //         Reload_Rotation = Accelerated_Ratio * Reload_Base_Speed;
+   //     }
     }
     else
     {

@@ -5,9 +5,9 @@
 	Project : DirectX 3D Sample
 
 	Author : Choi HyungJoon
-	Date : 2026. 02. 13
-	Version : 1.0.0
-	Note : Initial Release!
+	Date : 2026. 03 ~
+	Version : 1.1.0
+	Note : Deving Now......
 
 	Version List :
 		Date : 2026. 01. 13

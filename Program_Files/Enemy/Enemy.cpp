@@ -404,15 +404,12 @@ void Enemy::Enemy_Collision_Player(double elapsed_time)
 {
 	float dt = static_cast<float>(elapsed_time);
 
-	XMFLOAT3 P_Pos = Player_Get_POS();
-	XMFLOAT3 E_Pos = Position;
-
 	// 1. Set Y Axis And Lock
-	XMVECTOR V_P_Pos = XMLoadFloat3(&P_Pos);
-	XMVECTOR V_E_Pos = XMLoadFloat3(&E_Pos);
+	XMVECTOR V_E_Pos = XMLoadFloat3(&Position);
 
-	V_P_Pos = XMVectorSetY(V_P_Pos, 0.0f);
-	V_E_Pos = XMVectorSetY(V_E_Pos, 0.0f);
+	XMFLOAT3 P_Pos = Player_Get_POS();
+	P_Pos.y += 0.875f;
+	XMVECTOR V_P_Pos = XMLoadFloat3(&P_Pos);
 
 	// 2. Get Dist
 	XMVECTOR V_Dist = XMVector3Length(V_E_Pos - V_P_Pos);
@@ -440,11 +437,17 @@ void Enemy::Enemy_Collision_Player(double elapsed_time)
 		Player_OnDamage(m_Info.Collision_Damage);
 
 		XMVECTOR V_Dir = V_E_Pos - V_P_Pos;
-		V_Dir = XMVector3Normalize(V_Dir);
+		XMVECTOR V_PushDir = XMVectorSetY(V_Dir, 0.0f);
+
+		if (XMVectorGetX(XMVector3Length(V_PushDir)) < 0.001f)
+		{
+			V_PushDir = XMVectorSetX(V_PushDir, 1.0f);
+		}
+		V_PushDir = XMVector3Normalize(V_PushDir);
 
 		float pushDist = Collision_Radius - dist;
 		XMVECTOR V_Current_Pos = XMLoadFloat3(&Position);
-		V_Current_Pos += V_Dir * pushDist;
+		V_Current_Pos += V_PushDir * pushDist;
 
 		XMStoreFloat3(&Position, V_Current_Pos);
 	}

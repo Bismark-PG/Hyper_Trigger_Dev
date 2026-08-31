@@ -1,11 +1,12 @@
 /*==============================================================================
 
-	Make Camera [Camera.h]
+	Make Camera [Player_Camera.cpp]
 
 	Author : Choi HyungJoon
 
 ==============================================================================*/
 #include "Player_Camera.h"
+#include "Player.h"
 #include <DirectXMath.h>
 #include "Shader_Manager.h"
 #include "direct3d.h"
@@ -29,6 +30,7 @@ constexpr float CAMERA_ROTATION_SCALE = 0.005f;
 static float Camera_Yaw = 0.0f, Camera_Pitch = 0.0f;
 static float Camera_Near_Z = 0.1f, Camera_Far_z = 1000.0f;
 constexpr float Change_Lerp_Speed = 15.0f;
+constexpr float Jump_Dist = 1.5f, Run_Dist = 1.2f;
 
 // Normal State (Base)
 static const float Dist_Normal = 3.5f;
@@ -179,6 +181,25 @@ void Player_Camera_Update(double elapsed_time)
     // --- ADS (Aim) Interpolation ---
     float Lerp_Speed = Change_Lerp_Speed * dt;
 
+    if (Is_Aiming_Mode)
+    {
+        Target_Dist = Dist_Aim;
+	}
+    else
+    {
+        if (Is_Player_Jump())
+        {
+            Target_Dist = Dist_Normal * Jump_Dist;
+        }
+        else if (Is_Plyer_Run())
+        {
+            Target_Dist = Dist_Normal * Run_Dist;
+        }
+        else
+        {
+            Target_Dist = Dist_Normal;
+        }
+    }
     // Distance Lerp
     Camera_Distance += (Target_Dist - Camera_Distance) * Lerp_Speed;
 

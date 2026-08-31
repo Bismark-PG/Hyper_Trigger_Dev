@@ -50,4 +50,10 @@ void Player_Add_Damage_Bonus(float amount);
 void Player_Add_Speed_Bonus(float amount);
 void Player_Add_HP_Bonus(float amount);
 
+// --- Parameter Geter  ---
+bool Is_Player_Move();
+bool Is_Player_Jump();
+bool Is_Player_Shoot();
+bool Is_Plyer_Run();
+
 #endif // PLAYER_H

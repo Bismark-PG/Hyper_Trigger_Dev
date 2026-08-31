@@ -28,6 +28,7 @@ public:
     void Reload();
     
     bool AddWeapon(WeaponType type, bool Sound = true);
+	void DropCurrentWeapon();
 
 	// Get Current Weapon Info
     bool HasWeapon() const;

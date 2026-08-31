@@ -68,6 +68,11 @@ constexpr float INVINCIBLE_DURATION = 1.0f;
 
 static float Walk_Timer = 0.0f;
 
+// Weapon Drop System
+static float Interact_Timer = 0.0f;
+static bool Has_Dropped_Weapon = false;
+static bool Prev_Interact_Input = false;
+
 // Level Bonus Ratios
 static float Bonus_Damage_Ratio = 0.0f;
 static float Bonus_Speed_Ratio = 0.0f;
@@ -89,17 +94,12 @@ static void Player_Update_Bullet_System();
 static XMVECTOR Player_Update_Is_Jumped(XMVECTOR Vel);
 static XMVECTOR Player_Update_Is_Moved(XMVECTOR Dir, XMVECTOR Flat_Front, XMVECTOR Flat_Right);
 static void Player_Update_Get_Sprint_Input();
-static void Player_Update_Get_Drop_Item_Input();
+static void Player_Update_Get_Drop_Item_Input(float dt);
 static void Player_Update_Get_Reload_Input();
 static void Player_Update_Get_Mouse_Input();
 
 // --- Animation Model ---
 static void Player_Update_Change_Animation(float dt);
-
-// --- Parameter Geter  ---
-static bool Is_Player_Move();
-static bool Is_Player_Jump();
-static bool Is_Player_Shoot();
 // ----------------------------------------------------------
 
 void Player_Initialize(const XMFLOAT3& First_POS, const XMFLOAT3& First_Front)
@@ -168,7 +168,7 @@ void Player_Update(double elapsed_time)
 	Player_Update_Get_Reload_Input();
 
 	// Item Pickup Input
-	Player_Update_Get_Drop_Item_Input();
+	Player_Update_Get_Drop_Item_Input(dt);
 
 	// ---------------------------------
 	//	--- 3. Physics Calculation ---
@@ -192,6 +192,11 @@ void Player_Update(double elapsed_time)
 	Dir = Player_Update_Is_Moved(Dir, Flat_Front, Flat_Right);
 	Dir = XMVector3Normalize(Dir);
 
+	if (Is_Player_Jump())
+	{
+		Dir = XMVectorZero();
+	}
+
 	// Set Direction And Speed
 	Vel += Dir * Player_Speed * dt;
 
@@ -199,8 +204,16 @@ void Player_Update(double elapsed_time)
 	Player_Update_Change_Animation(dt);
 
 	// Friction
+
 	XMVECTOR Horizontal_Vel = XMVectorMultiply(Vel, XMVectorSet(1.0f, 0.0f, 1.0f, 0.0f));
-	Horizontal_Vel -= Horizontal_Vel * PLAYER_DRAG * dt;
+	if (!Is_Player_Jump())
+	{
+		Horizontal_Vel -= Horizontal_Vel * PLAYER_DRAG * dt;
+	}
+	else
+	{
+		Horizontal_Vel -= Horizontal_Vel * (PLAYER_DRAG * 0.05f) * dt;
+	}
 	Vel = XMVectorMultiply(Vel, XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f)) + Horizontal_Vel;
 
 	// Apply Velocity
@@ -321,6 +334,11 @@ void Player_Reset()
 	Bonus_Damage_Ratio = 0.0f;
 	Bonus_Speed_Ratio = 0.0f;
 	Bonus_HP_Ratio = 0.0f;
+
+	// 4. Drop Weapon Reset
+	Interact_Timer = 0.0f;
+	Has_Dropped_Weapon = false;
+	Prev_Interact_Input = false;
 }
 
 
@@ -410,7 +428,8 @@ bool Player_Is_Aiming_Now()
 void Player_LevelUp()
 {
 	// Heal
-	int healAmount = static_cast<int>(Player_Get_MaxHP() * Bonus_HP_Heal);
+	// int healAmount = static_cast<int>(Player_Get_MaxHP() * Bonus_HP_Heal);
+	int healAmount = static_cast<int>(Player_Get_MaxHP());
 	Player_Heal(healAmount);
 
 	Audio_Manager::GetInstance()->Play_SFX("Player_Level_UP");
@@ -729,38 +748,60 @@ void Player_Update_Get_Sprint_Input()
 	}
 }
 
-void Player_Update_Get_Drop_Item_Input()
+void Player_Update_Get_Drop_Item_Input(float dt)
 {
-	if (KeyLogger_IsTrigger(KK_E) || XKeyLogger_IsPadTrigger(XINPUT_GAMEPAD_X))
+	bool Current_Input = (KeyLogger_IsTrigger(KK_E) || XKeyLogger_IsPadTrigger(XINPUT_GAMEPAD_X));
+
+	if (Current_Input)
 	{
-		// Get Player Eye POS & Dir
-		XMFLOAT3 pEyePos = Player_Camera_Get_Current_POS();// Player Eye Position
-		XMFLOAT3 pDir = Player_Camera_Get_Front(); // Player Camera Front Direction
-
-		// Set Request Item (Nearest Weapon In View)
-		ResourceItem* item = Resource_Manager::GetInstance().Get_Nearest_Weapon_In_View(pEyePos, pDir, 5.0f); // Distance 3.0f
-
-		if (item != nullptr)
+		if (!Has_Dropped_Weapon)
 		{
-			// Get Weapon
-			if (Weapon_System::GetInstance().AddWeapon(item->W_Type))
+			Interact_Timer += dt;
+
+			if (Interact_Timer >= 2.0f)
 			{
-				// If Success, Deactivate Item
-				item->Active = false;
-
-				// Deactivate Billboard Too
-
-				if (item->Drop_Box_Icon_Link)
+				if (Weapon_System::GetInstance().HasWeapon())
 				{
-					item->Drop_Box_Icon_Link->Deactivate();
+					Weapon_System::GetInstance().DropCurrentWeapon();
 				}
-			}
-			else
-			{
-				Audio_Manager::GetInstance()->Play_SFX("Buffer_Denied");
+				Has_Dropped_Weapon = true;
 			}
 		}
 	}
+	else
+	{
+		if (Prev_Interact_Input)
+		{
+			if (Interact_Timer < 1.0f && !Has_Dropped_Weapon)
+			{
+				XMFLOAT3 pEyePos = Player_Camera_Get_Current_POS();
+				XMFLOAT3 pDir = Player_Camera_Get_Front();
+
+				ResourceItem* item = Resource_Manager::GetInstance().Get_Nearest_Weapon_In_View(pEyePos, pDir, 5.0f);
+
+				if (item != nullptr)
+				{
+					if (Weapon_System::GetInstance().AddWeapon(item->W_Type))
+					{
+						item->Active = false;
+						if (item->Drop_Box_Icon_Link)
+						{
+							item->Drop_Box_Icon_Link->Deactivate();
+						}
+					}
+					else
+					{
+						Audio_Manager::GetInstance()->Play_SFX("Buffer_Denied");
+					}
+				}
+			}
+		}
+
+		Interact_Timer = 0.0f;
+		Has_Dropped_Weapon = false;
+	}
+
+	Prev_Interact_Input = Current_Input;
 }
 
 void Player_Update_Get_Reload_Input()
@@ -837,24 +878,16 @@ void Player_Update_Change_Animation(float dt)
 
 	if (Is_Player_Jump())
 	{
-		Model_Play_Animation(Player_Model, "Jump");
+		Model_Play_Animation(Player_Model, "Jump", false);
 		//Audio_Manager::GetInstance()->Play_SFX("Player_Jump"); << Jump Sound
 	}
 	else if (Is_Player_Move())
 	{
-		Model_Play_Animation(Player_Model, "F_Move");
-
-		Walk_Timer += dt;
-		if (Walk_Timer >= 0.5f)
-		{
-			Model_Play_Animation(Player_Model, "Idle");
-			Walk_Timer = 0.0f;
-		}
+		Model_Play_Animation(Player_Model, "F_Move", true);
 	}
 	else
 	{
-		Walk_Timer = 0.0f;
-		Model_Play_Animation(Player_Model, "Idle");
+		Model_Play_Animation(Player_Model, "Idle", true);
 	}
 }
 
@@ -874,4 +907,9 @@ bool Is_Player_Jump()
 bool Is_Player_Shoot()
 {
 	return Is_Shoot;
+}
+
+bool Is_Plyer_Run()
+{
+	return Is_Run;
 }

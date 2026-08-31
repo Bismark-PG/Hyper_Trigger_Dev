@@ -288,6 +288,17 @@ bool Weapon_System::AddWeapon(WeaponType type, bool Sound)
     return true;
 }
 
+void Weapon_System::DropCurrentWeapon()
+{
+	if (m_WeaponQueue.empty()) return;
+
+	m_WeaponQueue.pop_front();
+
+	Audio_Manager::GetInstance()->Play_SFX("Weapon_Drop");
+
+	SyncBGM();
+}
+
 bool Weapon_System::HasWeapon() const
 {
     return !m_WeaponQueue.empty();
